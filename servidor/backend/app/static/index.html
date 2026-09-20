@@ -268,6 +268,22 @@
         const input = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
 
+        // Identificador de la conversación: con el mismo id el tutor recuerda los turnos anteriores
+        // ("explícame eso mejor"). Se guarda junto al historial y se renueva al limpiarlo.
+        function nuevoConversationId() {
+            return (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '')
+                : Date.now().toString(36) + Math.random().toString(36).slice(2);
+        }
+        function conversationId() {
+            let id = null;
+            try { id = localStorage.getItem('tutor_conversation_id'); } catch (e) {}
+            if (!id) {
+                id = nuevoConversationId();
+                try { localStorage.setItem('tutor_conversation_id', id); } catch (e) {}
+            }
+            return id;
+        }
+
         function loadHistory() {
             const history = JSON.parse(localStorage.getItem('tutor_history') || '[]');
             messagesDiv.innerHTML = '';
@@ -323,7 +339,7 @@
                 const res = await fetch('/api/v1/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
+                    body: JSON.stringify({ message: text, conversation_id: conversationId() })
                 });
                 const data = await res.json();
                 addMessage('assistant', data.response || 'Sin respuesta');
@@ -338,6 +354,7 @@
         function clearHistory() {
             if (confirm('¿Desea borrar todo el historial de chat?')) {
                 localStorage.removeItem('tutor_history');
+                localStorage.removeItem('tutor_conversation_id');   // conversación nueva: el tutor olvida la anterior
                 messagesDiv.innerHTML = '';
                 historyList.innerHTML = '';
             }

@@ -64,6 +64,26 @@ def temas_planos() -> list[str]:
     return [f"Unidad {u['numero']}: {tema}" for u in UNIDADES_SILABO for tema in u["temas"]]
 
 
+def ubicar_en_silabo(termino: str) -> list[str]:
+    """Dónde trata el sílabo un término (p. ej. 'Scrum' -> Unidad 1, 'ISO/IEC/IEEE 29119' -> Unidad 4).
+    Devuelve líneas 'Unidad N (título): tema'. Es la ubicación real, para no depender de que el LLM
+    adivine la unidad correcta."""
+    import re
+    import unicodedata
+
+    def norm(t: str) -> str:
+        t = "".join(c for c in unicodedata.normalize("NFKD", t.lower()) if not unicodedata.combining(c))
+        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", t)).strip()
+
+    buscado = norm(termino)
+    if not buscado:
+        return []
+    return [
+        f"Unidad {u['numero']} ({u['titulo']}): {tema}"
+        for u in UNIDADES_SILABO for tema in u["temas"] if buscado in norm(tema)
+    ]
+
+
 def texto_temas_numerados() -> str:
     return "\n".join(f"{i}. {t}" for i, t in enumerate(temas_planos(), start=1))
 

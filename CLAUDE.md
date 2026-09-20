@@ -33,23 +33,27 @@ Flutter app (from `normativas_app/`): `flutter pub get`, `flutter run`, `flutter
 
 ## Backend architecture
 
-Layers (all under `servidor/backend/app/`): HTTP layer (`main.py`, `api/v1/endpoints/chat.py`, `api/v1/endpoints/documentos.py`) → service layer (`services/rag_service.py`, `services/conversion_service.py`) → Chroma vector store + Ollama LLM. There is no database, auth, or session state server-side: the HTML test page keeps chat history in browser `localStorage` (`tutor_history`), and `user_id` in `ChatRequest` is accepted but unused.
+Layers (all under `servidor/backend/app/`): HTTP layer (`main.py`, `api/v1/endpoints/chat.py`, `api/v1/endpoints/documentos.py`) → service layer (`services/rag_service.py`, `services/conversion_service.py`) → Chroma vector store + Ollama LLM. There is no database or auth. Conversation memory lives in RAM per `conversation_id` (`services/memoria_service.py`, lost on server restart); the HTML test page also keeps its chat history in browser `localStorage` (`tutor_history`, plus `tutor_conversation_id`), and `user_id` in `ChatRequest` is accepted but unused.
 
 - `app/main.py` — creates the FastAPI app, CORS `*`, mounts the chat and documentos routers under `/api/v1`, serves `static/index.html` at `/` and the `/documentacion/...` file routes. Settings come from `app/core/config.py` (paths, allowed extensions, `MAX_UPLOAD_MB`); `.env` is empty. A stray copy of `config.py` is tracked at `PROYECTO/backend/app/core/config.py`.
 - `app/api/v1/endpoints/chat.py` — the `/chat` endpoint; delegates everything to `RAGService.get_answer` via `get_rag_service()`. `context` in the response is the retrieved text truncated to 1000 chars.
 - `app/api/v1/endpoints/documentos.py` — upload / reindex / list endpoints.
 - `app/services/rag_service.py` — all RAG logic (LangChain). `get_rag_service()` returns the one shared instance.
-- `app/services/pertinencia_service.py` — relevance filter (tutor-question detection, DENTRO/FUERA classifier, redirect generation); `app/core/silabo.py` — syllabus units.
+- `app/services/pertinencia_service.py` — relevance filter (tutor-question detection, DENTRO/FUERA classifier, redirect generation); `app/core/silabo.py` — syllabus units (+ `ubicar_en_silabo`: which unit covers a term).
+- `app/services/tutor_service.py` — the tutor prompt and its helpers (student intent, follow-up rewriting, context formatting, checks on what the LLM wrote); `app/services/memoria_service.py` — per-conversation memory.
 - `app/services/conversion_service.py` — PDF/Markdown conversion of uploaded files.
 
-`RAGService` request flow for `get_answer(question)` (returns `{response, context, tipo}`; `/chat` exposes `tipo`, one of `saludo | funcionamiento | sin_documentos | respuesta | redireccion | error`):
+`RAGService` request flow for `get_answer(question, conversation_id=None)` (returns `{response, context, tipo}`; `POST /chat` takes `{message, conversation_id?}` and returns `{response, context, status, tipo, conversation_id}` — if the client sends no id the server creates one and returns it; the HTML page and the Flutter chat screen store and resend it; `tipo` is one of `saludo | funcionamiento | sin_documentos | respuesta | sin_contexto | redireccion | error`):
 
 1. **Greeting shortcut** — if the lowercased question is exactly one of a short list (`hola`, `buenas`, `buenos días`, `buenas tardes`, `hey`, `hi`, `hoola`) a fixed welcome message is returned with no retrieval or LLM call (`tipo: saludo`). This is the only canned reply.
 2. **Questions about the tutor itself** (`pertinencia_service.es_pregunta_sobre_tutor`, regexes on 2nd-person phrasing: "¿qué puedes hacer?", "¿qué documentos tienes?", "¿de qué temas me puedes ayudar?"...) skip the filter and are answered by the LLM from real data (indexed document names + syllabus units) — `tipo: funcionamiento`.
 3. **Guard** — if the collection has zero chunks it returns a "no documents loaded" message (`sin_documentos`).
-4. **Retrieve with score** — top-4 chunks with cosine similarity (`buscar_con_score`).
-5. **Relevance filter** — see "Relevance filter" below. Off-topic → `tipo: redireccion`, no answer content.
-6. **Generate** — `ChatPromptTemplate | ChatOllama(model="llama3.2", temperature=0.4) | StrOutputParser` (`respuesta`). Any exception is caught and returned as the response text (HTTP status stays 200, `status: "success"`, `tipo: error`).
+4. **Memory** — the last turns of that `conversation_id` are loaded; if the message is a follow-up ("explícame eso mejor", refers to "eso", or is ≤3 words) `reformular_pregunta` rewrites it as a standalone question (only then: rewriting independent questions made the LLM paste history into them). Retrieval and the relevance filter use that standalone question.
+5. **Retrieve with score** — top-4 chunks with cosine similarity (`buscar_con_score`).
+6. **Relevance filter** — see "Relevance filter" below. Off-topic → `tipo: redireccion`, no answer content.
+7. **Intent** (`tutor_service.detectar_intencion`): explicit cues first (`resuélveme`, `hazlo por mí` → TAREA; `explícame mejor`, `no entendí`, `ejemplo`, `amplía` → PROFUNDIZAR), then a direct question ("qué es", "cuál es la diferencia", "cuándo aplica"...) → PUNTUAL without any LLM call, and only for imperatives/references a short LLM classification (the small LLM classified almost every conceptual question as PROFUNDIZAR, hence the rules). PROFUNDIZAR retrieves k=6 anchored on the previous student question.
+8. **Missing terms** (`terminos_sin_respaldo`) — if the student names a norm number, acronym (CMMI, DORA, CI/CD), mixed-case term (DevOps) or syllabus proper name (Scrum, Kanban) that is not in the retrieved context or document names, the tutor does NOT explain it: `PROMPT_SIN_CONTEXTO` says it is not in the documents and points to the real syllabus unit (`ubicar_en_silabo`) → `tipo: sin_contexto`. A prompt-level warning was not enough with llama3.2.
+9. **Generate** — `PROMPT_TUTOR` with the mode text for the intent (PUNTUAL: ≤3 sentences + one short reflection question, appended by the LLM if missing; PROFUNDIZAR: several paragraphs + a software-development example; TAREA: numbered steps with hints, never the finished work) plus a one-line reminder of the mode right before the answer. Context fragments are labelled `[Documento: name — «title»]`. Guard rails on the output: preamble/greeting/apology stripped, pasted document labels replaced by the title, dangling "Referencias:" removed, cut-off sentence trimmed, unsupported ISO numbers/years/clauses/counts/acronyms trigger one retry (then those sentences are removed), a TAREA answer with <3 numbered steps or <45 words is retried (max 2). The LLM is `ChatOllama` with `num_ctx=8192`, `num_predict=1024`, `repeat_penalty=1.15`, temperature 0.35 (without the caps llama3.2 once produced 3,800 words in a loop). Any exception is caught and returned as the response text (HTTP status stays 200, `status: "success"`, `tipo: error`).
 
 ## Relevance filter (filtro de pertinencia temática)
 
@@ -83,13 +87,15 @@ Consequences: for DOCX/PPTX/MD/TXT the PDF copy is a **re-rendering of the extra
 
 ## Tutor behavior rules
 
-These are the rules currently encoded in the prompt in `rag_service.py` (Spanish, university-tutor persona for ISO 9001, 25010, 27001, 12207, etc.). Keep any prompt change consistent with them:
+These are the rules encoded in `PROMPT_TUTOR` / `INSTRUCCIONES_MODO` in `services/tutor_service.py` (Spanish, university-tutor persona). Keep any prompt change consistent with them and rerun `python scripts/bateria_tutor.py` (details and results: `backend/documentacion/prompt_tutor.md`):
 
-- Answer only from the retrieved context; if the context is insufficient, say so honestly instead of filling in from the model's own knowledge. When retrieval returns nothing the prompt is fed the literal "No se encontró información relevante en los documentos."
+- Start directly with what resolves the doubt: no preamble ("excelente pregunta"), no repeating the question. Short for a specific question, extended (with an example applied to software development) when the student asks to go deeper, guided step by step — never solved — when the student asks for a task to be done.
+- Tutor role is inviolable: guide, give hints, ask reflection questions; never hand over the finished exercise or write the student's work.
+- Answer only from the retrieved context; if it is insufficient say so clearly and point to the syllabus unit / document, and never invent norms, ISO numbers, years or clauses. Cite a norm with its full identifier and the document it came from.
 - Off-topic questions (outside the syllabus) are redirected, never answered — see "Relevance filter".
-- Natural, conversational Spanish; adapt depth to the student's question.
-- May explain, give examples, ask reflection questions, or go deeper as needed — but must **not** follow a fixed script or predefined sequence of steps (the code deliberately has no lesson flow or state machine; only the greeting shortcut is canned).
-- Not implemented (do not assume): quizzes, progress tracking, per-user memory across turns (each `/chat` call is stateless — the LLM sees only the current question and retrieved context), citation of sources.
+- Professional but conversational Spanish; no fixed structure repeated across answers (numbered steps only in TAREA mode). The only canned reply is still the initial greeting.
+- Memory: the tutor remembers the previous turns of the same `conversation_id` (last 4 turns shown to the LLM, 8 kept, 200 conversations, in RAM).
+- Not implemented (do not assume): quizzes, progress tracking, persistence of conversations across server restarts.
 
 The syllabus's pedagogy (below: ABP, cooperative learning, problem-based learning, evidence-based decisions) is the intended teaching context, but it is not encoded anywhere in the code.
 

@@ -8,31 +8,11 @@ import app.services.rag_service as rag_module
 from app.core.config import settings
 from app.services import pertinencia_service as pertinencia
 from app.services.rag_service import RAGService
-from tests.conftest import texto_largo
+from tests.conftest import LLMFalso, texto_largo
 
+PERTINENCIA = "clasificador de preguntas"   # texto del prompt DENTRO/FUERA
 SIEMPRE_PERTINENTE = -1.0   # similitud coseno >= -1: nada es candidato
 SIEMPRE_CANDIDATA = 2.0     # similitud coseno < 2: todo es candidato
-
-
-class LLMFalso:
-    """LLM de mentira (Runnable) que cuenta llamadas y guarda los prompts recibidos."""
-
-    def __init__(self, respuesta="Respuesta del LLM"):
-        self.respuesta = respuesta
-        self.prompts: list[str] = []
-
-    @property
-    def llamadas(self) -> int:
-        return len(self.prompts)
-
-    def __call__(self, valor_prompt):
-        self.prompts.append(valor_prompt.to_string())
-        if isinstance(self.respuesta, Exception):
-            raise self.respuesta
-        return self.respuesta
-
-    def runnable(self):
-        return RunnableLambda(self)
 
 
 @pytest.fixture
@@ -160,15 +140,15 @@ def test_pregunta_pertinente_no_llama_al_clasificador(tutor, llms, monkeypatch):
     monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", SIEMPRE_PERTINENTE)
     r = tutor.get_answer("¿Qué es la calidad?")
     assert r["tipo"] == "respuesta" and r["response"] == "Respuesta con contexto"
-    assert llms["clasificador"].llamadas == llms["redireccion"].llamadas == 0
+    assert llms["clasificador"].llamadas_con(PERTINENCIA) == llms["redireccion"].llamadas == 0
 
 
 def test_candidata_confirmada_dentro_se_responde_con_el_rag(tutor, llms, monkeypatch):
     monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", SIEMPRE_CANDIDATA)
     llms["clasificador"].respuesta = "DENTRO"
-    r = tutor.get_answer("¿Qué es Scrum?")
+    r = tutor.get_answer("¿Qué es un plan de calidad?")
     assert r["tipo"] == "respuesta" and r["response"] == "Respuesta con contexto"
-    assert llms["clasificador"].llamadas == 1 and llms["redireccion"].llamadas == 0
+    assert llms["clasificador"].llamadas_con(PERTINENCIA) == 1 and llms["redireccion"].llamadas == 0
 
 
 def test_candidata_fuera_redirige_y_no_responde_el_contenido(tutor, llms, monkeypatch):
@@ -215,7 +195,7 @@ def test_filtro_desactivado_no_clasifica_ni_redirige(tutor, llms, monkeypatch):
     llms["clasificador"].respuesta = "FUERA"
     r = tutor.get_answer("¿Cuál es la capital de Australia?")
     assert r["tipo"] == "respuesta"
-    assert llms["clasificador"].llamadas == 0
+    assert llms["clasificador"].llamadas_con(PERTINENCIA) == 0
 
 
 def test_sin_documentos_no_redirige(tmp_path, docs, llms, monkeypatch):
@@ -236,8 +216,10 @@ def test_score_es_similitud_coseno(tutor):
 # ---------------------------------------------------------------- endpoint /chat
 
 def test_endpoint_chat_expone_el_tipo(tutor, llms, monkeypatch):
-    monkeypatch.setattr(rag_module, "_instancia", tutor)
-    from app.api.v1.endpoints.chat import router
+    monkeypatch.setattr(rag_module, "_instancia", tutor)   # evita crear el RAG real al importar chat
+    import app.api.v1.endpoints.chat as chat_module
+    monkeypatch.setattr(chat_module, "rag_service", tutor)  # chat.py lo fija al importarse
+    router = chat_module.router
 
     app = FastAPI()
     app.include_router(router, prefix="/api/v1")

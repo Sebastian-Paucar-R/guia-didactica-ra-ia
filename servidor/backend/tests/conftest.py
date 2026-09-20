@@ -1,4 +1,5 @@
 import pytest
+from langchain_core.runnables import RunnableLambda
 from langchain_core.embeddings import DeterministicFakeEmbedding
 
 from app.core.config import settings
@@ -29,3 +30,34 @@ def texto_largo(tema: str, parrafos: int = 12) -> str:
     return "\n\n".join(
         f"## {tema} sección {i}\n\n" + f"Contenido de {tema}, parte {i}. " * 25 for i in range(parrafos)
     )
+
+
+class LLMFalso:
+    """LLM de mentira (Runnable) que cuenta llamadas y guarda los prompts recibidos.
+
+    `respuesta` puede ser un texto fijo, una excepción (se lanza) o una lista: cada llamada
+    consume el primer elemento y, al quedar uno, lo repite."""
+
+    def __init__(self, respuesta="Respuesta del LLM"):
+        self.respuesta = respuesta
+        self.prompts: list[str] = []
+
+    @property
+    def llamadas(self) -> int:
+        return len(self.prompts)
+
+    def llamadas_con(self, fragmento: str) -> int:
+        """Llamadas cuyo prompt contiene `fragmento` (el clasificador se usa para varias tareas)."""
+        return sum(fragmento in p for p in self.prompts)
+
+    def __call__(self, valor_prompt):
+        self.prompts.append(valor_prompt.to_string())
+        respuesta = self.respuesta
+        if isinstance(respuesta, list):
+            respuesta = respuesta.pop(0) if len(respuesta) > 1 else respuesta[0]
+        if isinstance(respuesta, Exception):
+            raise respuesta
+        return respuesta
+
+    def runnable(self):
+        return RunnableLambda(self)

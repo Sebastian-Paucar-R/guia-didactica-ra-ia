@@ -1,5 +1,45 @@
 # BITÁCORA
 
+## 2026-09-20 — Prompt del tutor: intención, memoria conversacional y respuestas calibradas
+
+### Qué se implementó
+- Nuevo prompt del tutor (`services/tutor_service.py`): respuesta directa sin preámbulos; modo según la intención del
+  estudiante (PUNTUAL: breve + pregunta de reflexión; PROFUNDIZAR: extensa con ejemplo de desarrollo de software; TAREA:
+  pasos numerados con pistas, nunca resuelta); tutor inviolable; solo contexto recuperado; citar norma + documento.
+- Intención: señales explícitas → pregunta directa (sin LLM) → LLM solo para lo ambiguo (el LLM solo clasificaba mal).
+- Memoria por `conversation_id` (`services/memoria_service.py`, en RAM): los seguimientos se reescriben como pregunta
+  autónoma antes de recuperar y filtrar. `POST /chat` acepta y devuelve `conversation_id`; la página de prueba y la
+  pantalla de chat de Flutter lo guardan y reenvían.
+- Términos sin respaldo (Scrum, ISO 29119, CI/CD…) → `tipo: "sin_contexto"`: dice que no está en los documentos y da la
+  unidad real del sílabo (`ubicar_en_silabo`), en vez de explicarlo de memoria.
+- Verificación de lo generado: normas/años/cláusulas/conteos/siglas sin respaldo (reintento y poda), tarea con <3 pasos
+  (hasta 2 reintentos), limpieza de preámbulos, etiquetas `[Documento: …]` y encabezados colgados.
+- Ollama: `num_ctx=8192` (el prompt se truncaba con 2048), `num_predict=1024` y `repeat_penalty=1.15` (una respuesta llegó
+  a 3 846 palabras en bucle).
+- 206 tests. Batería real (`scripts/bateria_tutor.py`) y su historial v1→v8: `servidor/backend/documentacion/prompt_tutor.md`
+  y `bateria_tutor_resultados.md`.
+
+### Archivos tocados
+`servidor/backend/app/{services/tutor_service.py, services/memoria_service.py (nuevos), services/rag_service.py,
+api/v1/endpoints/chat.py, core/config.py, core/silabo.py, static/index.html}`, `servidor/backend/scripts/bateria_tutor.py`,
+`servidor/backend/tests/{conftest.py, test_tutor.py (nuevo), test_pertinencia.py}`, `servidor/backend/documentacion/*.md`,
+`normativas_app/lib/screens/chat_screen.dart` (conversation_id; `flutter analyze` sin problemas), `CLAUDE.md`, `BITACORA.md`.
+
+### Resultados
+Batería de 9 mensajes (6 de los tres tipos de intención + 3 extra): intención detectada 9/9; memoria correcta en los dos
+seguimientos; puntuales de 64-75 palabras con pregunta final; tareas C y D con 5 pasos numerados sin entregar el trabajo;
+E (ISO 29119) y G (Scrum) dicen que no están en los documentos y señalan la unidad correcta.
+
+### Pendiente
+- Defectos de llama3.2 (3B) que persisten: F dijo "7 cláusulas" (la base dice 10; el verificador no lo detecta porque "7"
+  aparece en el contexto), citar el documento fuente es irregular, ejemplos de PROFUNDIZAR con detalles inventados,
+  preguntas de reflexión a veces poco pertinentes. Ideas: LLM mayor para redactar, reranking, verificación semántica.
+- La memoria vive en RAM (se pierde al reiniciar). La latencia depende de la máquina (7-45 s en la última corrida).
+- `iniciar_servidor.bat` sigue apuntando a un venv sin el stack.
+
+### Siguiente paso sugerido
+Probar un modelo más grande en Ollama con la misma batería y decidir si compensa la latencia; persistir la memoria si se necesita.
+
 ## 2026-09-20 — Filtro de pertinencia temática en el chat
 
 ### Qué se implementó

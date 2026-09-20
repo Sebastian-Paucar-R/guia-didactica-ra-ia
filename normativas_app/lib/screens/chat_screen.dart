@@ -20,6 +20,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
+  // Identifica la conversación: el servidor la crea en el primer mensaje y con ella recuerda los turnos previos
+  String? _conversationId;
 
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
@@ -39,12 +41,16 @@ class _ChatScreenState extends State<ChatScreen> {
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
-        body: json.encode({"message": text}),
+        body: json.encode({
+          "message": text,
+          if (_conversationId != null) "conversation_id": _conversationId,
+        }),
       );
 
       // 4. Recibir y mostrar la respuesta
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        _conversationId = data["conversation_id"] ?? _conversationId;
         setState(() {
           _messages.add(ChatMessage(text: data["response"], isUser: false));
         });
