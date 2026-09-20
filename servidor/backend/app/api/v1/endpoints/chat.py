@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from app.services.rag_service import RAGService
+from app.services.rag_service import get_rag_service
 
 router = APIRouter()
 
-# Instancia única
-rag_service = RAGService()
+# Instancia única (compartida con main.py y el router de documentos)
+rag_service = get_rag_service()
 
 class ChatRequest(BaseModel):
     message: str
@@ -19,9 +19,9 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_tutor(request: ChatRequest):
     print(f"\n[USUARIO] → {request.message}")
-    
+
     result = rag_service.get_answer(request.message)
-    
+
     return ChatResponse(
         response=result.get("response", "Sin respuesta"),
         context=result.get("context", ""),
