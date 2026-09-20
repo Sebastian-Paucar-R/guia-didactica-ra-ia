@@ -49,12 +49,23 @@ CREATE TABLE IF NOT EXISTS respuestas (
     usos INTEGER NOT NULL DEFAULT 0,     -- reutilizaciones (0 al crearse)
     tiempo_generacion_ms REAL NOT NULL,  -- lo que costó generarla: referencia del tiempo ahorrado
     creado_en TEXT NOT NULL,
-    ultimo_uso TEXT NOT NULL
+    ultimo_uso TEXT NOT NULL,
+    -- ajuste al estudiante con el que se generó (perfil): '' = sin ajuste. Ver adaptacion_service.Adaptacion.segmento
+    segmento TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_respuestas_clave ON respuestas (intencion, huella);
 CREATE TABLE IF NOT EXISTS meta (clave TEXT PRIMARY KEY, valor);  -- contadores y datos sueltos
 INSERT OR IGNORE INTO meta (clave, valor) VALUES ('version', 0);
 """
+
+
+def _migrar(con) -> None:
+    """Bases creadas antes del perfil del estudiante no tienen la columna `segmento`: sus entradas eran todas
+    respuestas sin ajuste, que es justo lo que significa el valor por defecto ('')."""
+    columnas = {fila[1] for fila in con.execute("PRAGMA table_info(respuestas)")}
+    if "segmento" not in columnas:
+        con.execute("ALTER TABLE respuestas ADD COLUMN segmento TEXT NOT NULL DEFAULT ''")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_respuestas_segmento ON respuestas (intencion, huella, segmento)")
 
 
 def intencion_de(pregunta: str) -> str:
@@ -102,6 +113,7 @@ class CacheSemantico:
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
         with self._conexion() as con:
             con.executescript(_ESQUEMA)
+            _migrar(con)
 
     @contextmanager
     def _conexion(self):
@@ -129,14 +141,20 @@ class CacheSemantico:
         with self._conexion() as con:
             return int(self._leer(con, "version"))
 
-    def buscar(self, pregunta: str, embedding) -> Acierto | None:
-        """Entrada más parecida con la misma intención y huella cuya similitud llegue al umbral. No modifica nada:
-        el uso se anota con `registrar_acierto` (necesita el tiempo total de la respuesta)."""
+    def buscar(self, pregunta: str, embedding, segmento: str = "") -> Acierto | None:
+        """Entrada más parecida con la misma intención, huella y segmento cuya similitud llegue al umbral. No
+        modifica nada: el uso se anota con `registrar_acierto` (necesita el tiempo total de la respuesta).
+
+        `segmento` es el ajuste al estudiante con el que se generaría la respuesta: una respuesta pensada para un
+        nivel o una profundidad no se sirve a quien necesita otra. Solo las `sin_contexto` (no dicen nada del tema,
+        solo que no está en los documentos) no se adaptan y se comparten entre todos los segmentos."""
         vector = _unitario(embedding)
         with self._conexion() as con:
             mejor_id, mejor = None, -1.0
-            for id_, blob in con.execute("SELECT id, embedding FROM respuestas WHERE intencion = ? AND huella = ?",
-                                         (intencion_de(pregunta), huella_de(pregunta))):
+            for id_, blob in con.execute(
+                    "SELECT id, embedding FROM respuestas WHERE intencion = ? AND huella = ? "
+                    "AND (segmento = ? OR (tipo = 'sin_contexto' AND segmento = ''))",
+                    (intencion_de(pregunta), huella_de(pregunta), segmento)):
                 candidato = np.frombuffer(blob, dtype=np.float32).astype(np.float64)
                 if candidato.shape != vector.shape:      # guardada con otro modelo de embeddings
                     continue
@@ -163,22 +181,29 @@ class CacheSemantico:
         with self._conexion() as con:
             self._sumar(con, "fallos", 1)
 
+    def registrar_omision_por_perfil(self) -> None:
+        """La consulta no pasó por el caché porque su respuesta cita lo que ese estudiante ya trabajó (es personal).
+        No cuenta como fallo: se lleva aparte para medir cuánto ahorro cuesta el perfil."""
+        with self._conexion() as con:
+            self._sumar(con, "omitidos_perfil", 1)
+
     # ------------------------------------------------------------------ escritura
 
     def guardar(self, pregunta: str, embedding, respuesta: str, contexto: str, fuentes: list[str], tipo: str,
-                tiempo_generacion_ms: float, version: int) -> bool:
+                tiempo_generacion_ms: float, version: int, segmento: str = "") -> bool:
         """Guarda una respuesta recién generada. Devuelve False (sin guardar) si el caché se invalidó desde
-        que se leyó `version`: la respuesta pudo salir de un índice ya desactualizado."""
+        que se leyó `version`: la respuesta pudo salir de un índice ya desactualizado. `segmento` debe ser el del
+        ajuste con el que realmente se generó (una `sin_contexto` va siempre sin segmento: no se adapta)."""
         ahora = _ahora()
         with self._conexion() as con:
             cursor = con.execute(
                 "INSERT INTO respuestas (pregunta, embedding, intencion, huella, respuesta, contexto, fuentes, tipo, "
-                "tiempo_generacion_ms, creado_en, ultimo_uso) "
-                "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? "
+                "tiempo_generacion_ms, creado_en, ultimo_uso, segmento) "
+                "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? "
                 "WHERE (SELECT valor FROM meta WHERE clave = 'version') = ?",   # comprobación e inserción atómicas
                 (pregunta, _unitario(embedding).astype(np.float32).tobytes(), intencion_de(pregunta),
                  huella_de(pregunta), respuesta, contexto, json.dumps(fuentes, ensure_ascii=False), tipo,
-                 tiempo_generacion_ms, ahora, ahora, version))
+                 tiempo_generacion_ms, ahora, ahora, "" if tipo == "sin_contexto" else segmento, version))
             return cursor.rowcount == 1
 
     def invalidar(self, motivo: str = "") -> int:
@@ -212,6 +237,8 @@ class CacheSemantico:
             invalidaciones = int(self._leer(con, "invalidaciones"))
             ultima = self._leer(con, "ultima_invalidacion", None)
             motivo = self._leer(con, "motivo_ultima_invalidacion", None)
+            omitidos = int(self._leer(con, "omitidos_perfil"))
+            segmentos = con.execute("SELECT segmento, COUNT(*) FROM respuestas GROUP BY segmento").fetchall()
         consultas = aciertos + fallos
         return {
             "total_entradas": total,
@@ -229,4 +256,8 @@ class CacheSemantico:
             "invalidaciones": invalidaciones,
             "ultima_invalidacion": ultima,
             "motivo_ultima_invalidacion": motivo,
+            # Coste del perfil sobre el caché: entradas por ajuste ("neutro" = sin ajuste) y consultas que no
+            # pudieron usarlo porque su respuesta es personal (cita lo ya trabajado por ese estudiante)
+            "entradas_por_segmento": {s or "neutro": n for s, n in segmentos},
+            "omitidos_por_perfil": omitidos,
         }

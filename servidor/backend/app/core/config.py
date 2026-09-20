@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     CACHE_UMBRAL_SIMILITUD: float = 0.95
     CACHE_DB_PATH: Path = SERVIDOR_DIR / "cache_respuestas.db"
 
+    # Perfilado adaptativo del estudiante (SQLite persistente; ver services/perfil_service.py). Con `user_id` en
+    # /chat el tutor estima el nivel por unidad, la profundidad y el estilo preferidos y ajusta cómo explica. Base
+    # aparte del caché: el caché se vacía al cambiar el índice y los perfiles no deben perderse.
+    PERFIL_ACTIVO: bool = True
+    PERFIL_DB_PATH: Path = SERVIDOR_DIR / "perfiles.db"
+
     class Config:
         env_file = ".env"
 

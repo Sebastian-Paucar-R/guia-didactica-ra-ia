@@ -472,6 +472,26 @@ def test_los_numeros_escritos_con_letras_respaldan_las_cifras(respuesta, respald
     assert tutor.normas_no_respaldadas(respuesta, respaldo) == invalidas
 
 
+@pytest.mark.parametrize("respuesta,respaldo,invalidas", [
+    # una cantidad escrita con letras que el contexto no trae es tan inventada como una en cifras
+    ("ISO/IEC 12207 define tres niveles de madurez.", "ISO/IEC 12207 define los procesos del ciclo de vida", ["tres niveles"]),
+    ("Son dos fases.", "se dividen en cuatro fases", ["dos fases"]),
+    ("Hay tres niveles.", "se agrupan en tres niveles de capacidad", []),      # el contexto lo dice con letras
+    ("Hay tres niveles.", "hay 3 niveles de capacidad", []),                    # ...o en cifras
+    ("Hay 3 niveles.", "se agrupan en tres niveles de capacidad", []),
+    ("Se usa un proceso sencillo y una fase corta.", "sin cifras", []),         # "un/una" no se controlan
+    ("Tiene ocho principios y diez categorías.", "sin cifras", ["ocho principios", "diez categorías"]),
+])
+def test_las_cantidades_en_letras_tambien_se_verifican(respuesta, respaldo, invalidas):
+    assert tutor.normas_no_respaldadas(respuesta, respaldo) == invalidas
+
+
+def test_una_oracion_con_una_cantidad_inventada_en_letras_se_elimina():
+    texto = "Define los procesos. Define tres niveles de madurez: madera, pino y roble. Sirve para planificar."
+    invalidas = tutor.normas_no_respaldadas(texto, "define los procesos del ciclo de vida")
+    assert tutor.quitar_oraciones_con(texto, invalidas) == "Define los procesos. Sirve para planificar."
+
+
 def test_numero_de_pasos():
     assert tutor.numero_de_pasos(GUIA_NUMERADA) == 4
     assert tutor.numero_de_pasos("1) uno" + NL + "2) dos" + NL + "**3. tres**") == 3

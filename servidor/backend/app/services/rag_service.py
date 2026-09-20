@@ -20,11 +20,14 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.core.config import settings
 from app.core import silabo
 from app.core.silabo import texto_silabo, ubicar_en_silabo
+from app.models.perfil import PerfilEstudiante
+from app.services import adaptacion_service as adaptacion
 from app.services import pertinencia_service as pertinencia
 from app.services import tutor_service as tutor
-from app.services.cache_service import TIPOS_CACHEABLES, Acierto, CacheSemantico
+from app.services.cache_service import TIPOS_CACHEABLES, Acierto, CacheSemantico, intencion_de
 from app.services.conversion_service import decodificar_texto
 from app.services.memoria_service import MemoriaConversacional
+from app.services.perfil_service import PerfilService
 
 COLECCION = "langchain"
 _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -42,6 +45,7 @@ class _ConsultaCache:
     embedding: list[float]
     version: int                 # versión del caché al empezar: si cambia, la respuesta no se guarda
     acierto: Acierto | None
+    ajuste: adaptacion.Adaptacion = adaptacion.Adaptacion()   # ajuste al estudiante con el que se buscó (segmento)
 
 
 class RAGService:
@@ -55,7 +59,7 @@ class RAGService:
     def __init__(self, embeddings=None, persist_dir=None, docs_dir=None,
                  sincronizar_al_iniciar: bool = True, llm=None,
                  llm_clasificador=None, llm_redireccion=None, llm_reformulador=None, memoria=None,
-                 cache: CacheSemantico | None = None):
+                 cache: CacheSemantico | None = None, perfiles: PerfilService | None = None):
         self._lock = threading.RLock()
         self.persist_dir = Path(persist_dir or settings.BASE_VECTORIAL_DIR)
         self.markdown_dir = (Path(docs_dir) / "markdown") if docs_dir else settings.MARKDOWN_DIR
@@ -83,6 +87,8 @@ class RAGService:
         # Caché semántico (SQLite): debe existir antes de sincronizar(), que lo invalida si el índice cambia
         self.cache = cache or (CacheSemantico(settings.CACHE_DB_PATH, settings.CACHE_UMBRAL_SIMILITUD)
                                if settings.CACHE_ACTIVO else None)
+        # Perfil adaptativo del estudiante (SQLite aparte del caché: el caché se vacía, los perfiles no)
+        self.perfiles = perfiles or (PerfilService(settings.PERFIL_DB_PATH) if settings.PERFIL_ACTIVO else None)
         self._invalidacion_pendiente: str | None = None
         silabo.cargar_silabo()   # el YAML del sílabo debe ser válido desde el arranque, no al primer mensaje
         self._vectores_temas = None   # (temas, embeddings), perezoso: ver _ubicar_por_embedding
@@ -298,21 +304,27 @@ class RAGService:
         resultados = self.vectorstore.similarity_search_with_score(pregunta, k=k)
         return [(doc, 1.0 - distancia) for doc, distancia in resultados]
 
-    def get_answer(self, question: str, conversation_id: str | None = None) -> dict:
-        """Devuelve {response, context, tipo, fuentes, desde_cache, tiempo_respuesta_ms}.
+    def get_answer(self, question: str, conversation_id: str | None = None, user_id: str | None = None) -> dict:
+        """Devuelve {response, context, tipo, fuentes, desde_cache, tiempo_respuesta_ms, ubicacion, adaptacion}.
 
         tipo: saludo | funcionamiento | sin_documentos | respuesta | sin_contexto | redireccion | error
         Con `conversation_id` el tutor recuerda los turnos anteriores de esa conversación
         (memoria en RAM): los seguimientos ("explícame eso mejor") se reescriben como pregunta
         autónoma antes de recuperar y filtrar.
 
-        Caché semántico: si una pregunta ya respondida es lo bastante parecida (ver cache_service), se devuelve
-        su respuesta sin recuperar ni llamar al LLM (`desde_cache: True`); si no, se genera como siempre y, si es
-        una respuesta basada en los documentos, se guarda. Un fallo del caché nunca impide responder.
+        Con `user_id` el tutor adapta CÓMO explica al perfil de ese estudiante (nivel por unidad, profundidad,
+        estilo, temas ya vistos) y, terminado el turno, actualiza el perfil con lo que hizo. `adaptacion` describe el
+        ajuste aplicado (None si no hubo perfil o la respuesta no se adapta). Sin `user_id` todo funciona como antes.
+
+        Caché semántico: si una pregunta ya respondida es lo bastante parecida (ver cache_service) y se generó con el
+        mismo ajuste al estudiante (segmento), se devuelve su respuesta sin recuperar ni llamar al LLM
+        (`desde_cache: True`); si no, se genera como siempre y, si es una respuesta basada en los documentos, se
+        guarda. Un fallo del caché o del perfil nunca impide responder.
         """
         inicio = time.perf_counter()
         turnos = self.memoria.obtener(conversation_id, ultimos=settings.MEMORIA_TURNOS_PROMPT)
-        consulta = self._consultar_cache(question, turnos)
+        perfil = self._cargar_perfil(user_id)
+        consulta = self._consultar_cache(question, turnos, perfil)
         if consulta and consulta.acierto:
             a = consulta.acierto
             resultado = {"response": a.respuesta, "context": a.contexto, "tipo": a.tipo,
@@ -322,9 +334,12 @@ class RAGService:
             if settings.FILTRO_PERTINENCIA_ACTIVO:
                 ubicacion = pertinencia.ubicar_por_palabras_clave(question) or self._ubicar_por_embedding(consulta.embedding)
             resultado["ubicacion"] = ubicacion.como_dict() if ubicacion else None
+            # Una sin_contexto compartida no se adapta; cualquier otra se generó con el ajuste de este segmento
+            resultado["adaptacion"] = consulta.ajuste.como_dict() if perfil is not None and a.tipo != "sin_contexto" else None
         else:
-            resultado = self._procesar(question, turnos)
+            resultado = self._procesar(question, turnos, perfil)
             resultado["desde_cache"] = False
+        resultado.setdefault("adaptacion", None)   # las rutas que no se adaptan (saludo, redirección, sin_contexto...) no la traen
         # También los aciertos: el estudiante vio esa respuesta, así que un seguimiento debe poder apoyarse en ella
         if resultado["tipo"] in ("respuesta", "funcionamiento", "redireccion", "sin_contexto"):
             self.memoria.agregar(conversation_id, question, resultado["response"], resultado["tipo"],
@@ -332,12 +347,59 @@ class RAGService:
         resultado["tiempo_respuesta_ms"] = round((time.perf_counter() - inicio) * 1000, 1)
         if consulta:
             self._anotar_en_cache(question, consulta, resultado)
+        if perfil is not None:
+            self._actualizar_perfil(user_id, conversation_id, question, resultado, turnos)
         return resultado
 
-    def _consultar_cache(self, question: str, turnos: list) -> _ConsultaCache | None:
+    # ------------------------------------------------------------------
+    # Perfil del estudiante
+    # ------------------------------------------------------------------
+
+    def _cargar_perfil(self, user_id: str | None) -> PerfilEstudiante | None:
+        """El perfil del estudiante (uno inicial si es su primer mensaje) o None si no hay `user_id`, los perfiles
+        están apagados o falla la lectura: en cualquiera de esos casos el tutor responde sin adaptar."""
+        if not user_id or self.perfiles is None:
+            return None
+        try:
+            return self.perfiles.obtener(user_id)
+        except Exception as e:
+            _log_perfil(f"error al leer el perfil ({type(e).__name__}: {e}); se responde sin adaptar")
+            return None
+
+    def _actualizar_perfil(self, user_id: str, conversation_id: str | None, question: str, resultado: dict,
+                           turnos: list) -> None:
+        """Después de responder: anota el mensaje en su sesión y, si fue una consulta atendida (respuesta o
+        sin_contexto), aplica las señales del turno al perfil. Una redirección, un saludo o un error solo cuentan
+        para el ritmo: "explícame otra vez la relatividad" no significa que le costara el último tema visto.
+
+        Excepción: un seguimiento que solo pide aclarar o ilustrar ("no entendí, explícame eso mejor", "dame otro
+        ejemplo"), sin tema propio, justo después de una explicación del tutor y que el filtro redirigió. En la
+        evaluación real el reformulador lo dio por autosuficiente en 3 de 25 seguimientos y el filtro lo tomó por otro
+        tema: es un error del filtro y lo que el estudiante hizo sigue siendo claro, así que sí cuenta."""
+        try:
+            atendida = resultado["tipo"] in ("respuesta", "sin_contexto")
+            seguimiento_redirigido = (
+                resultado["tipo"] == "redireccion" and bool(turnos) and turnos[-1].tipo in ("respuesta", "sin_contexto")
+                and adaptacion.es_seguimiento_puro(question))
+            reflexion = atendida and adaptacion.respondio_bien(self.llm_clasificador, turnos, question)
+            ubicacion = resultado.get("ubicacion")
+            seguimiento = bool(turnos) and tutor.es_seguimiento(question)
+            self.perfiles.registrar_turno(
+                user_id, conversation_id,
+                (lambda p: adaptacion.aplicar_turno(p, question, ubicacion, reflexion, seguimiento=seguimiento))
+                if atendida or seguimiento_redirigido else (lambda p: []))
+        except Exception as e:
+            _log_perfil(f"error al actualizar el perfil ({type(e).__name__}: {e})")
+
+    def _consultar_cache(self, question: str, turnos: list, perfil: PerfilEstudiante | None = None) -> _ConsultaCache | None:
         """None si el caché no aplica a esta pregunta o falla; si no, su embedding, la versión del caché y el
         acierto (si lo hay). Se salta el caché cuando la respuesta no depende solo de la pregunta y los documentos:
-        saludos, preguntas sobre el propio tutor y seguimientos dentro de una conversación ("explícame eso mejor")."""
+        saludos, preguntas sobre el propio tutor y seguimientos dentro de una conversación ("explícame eso mejor").
+
+        Con perfil, la búsqueda se limita a respuestas generadas con el mismo ajuste al estudiante (segmento), y
+        se salta cuando la respuesta citaría lo que este estudiante ya trabajó (personal: no se comparte). La
+        unidad se estima aquí con palabras clave o embedding; si el filtro decide otra después, solo se pierde
+        el acierto, porque lo guardado siempre lleva el segmento del ajuste realmente usado."""
         if self.cache is None or not question.strip() or question.lower().strip() in SALUDOS:
             return None
         if turnos and tutor.es_seguimiento(question):
@@ -353,7 +415,15 @@ class RAGService:
                     return None
             version = self.cache.version()
             embedding = self.embeddings.embed_query(question)
-            return _ConsultaCache(embedding, version, self.cache.buscar(question, embedding))
+            ajuste = adaptacion.Adaptacion()
+            if perfil is not None and not perfil.es_neutro():
+                ubicacion = pertinencia.ubicar_por_palabras_clave(question) or self._ubicar_por_embedding(embedding)
+                ajuste = adaptacion.construir_adaptacion(perfil, ubicacion, intencion_de(question))
+                if ajuste.personal:
+                    self.cache.registrar_omision_por_perfil()
+                    _log_cache(f"omitido: la respuesta cita temas ya trabajados por el estudiante pregunta={question.strip()[:80]!r}")
+                    return None
+            return _ConsultaCache(embedding, version, self.cache.buscar(question, embedding, ajuste.segmento), ajuste)
         except Exception as e:
             _log_cache(f"error al consultar ({type(e).__name__}: {e}); se responde sin caché")
             return None
@@ -368,10 +438,16 @@ class RAGService:
                            f"{ms}ms pregunta={question.strip()[:80]!r} guardada={consulta.acierto.pregunta[:80]!r}")
                 return
             self.cache.registrar_fallo()
-            if resultado["tipo"] in TIPOS_CACHEABLES:
+            if resultado["tipo"] in TIPOS_CACHEABLES and resultado.get("personal"):
+                # El filtro ubicó la consulta en otra unidad que la estimada al buscar, y aquí la respuesta cita lo que
+                # este estudiante ya trabajó: es suya, no se comparte
+                self.cache.registrar_omision_por_perfil()
+                _log_cache(f"fallo {ms}ms, respuesta personal no se guarda pregunta={question.strip()[:80]!r}")
+            elif resultado["tipo"] in TIPOS_CACHEABLES:
                 guardada = self.cache.guardar(
                     question, consulta.embedding, resultado["response"], resultado.get("context", ""),
-                    resultado.get("fuentes", []), resultado["tipo"], ms, consulta.version)
+                    resultado.get("fuentes", []), resultado["tipo"], ms, consulta.version,
+                    segmento=resultado.get("segmento", ""))
                 _log_cache(f"fallo {ms}ms, " + ("respuesta guardada" if guardada else
                            "NO guardada: el índice cambió mientras se generaba") + f" pregunta={question.strip()[:80]!r}")
             else:
@@ -409,10 +485,10 @@ class RAGService:
             return {"response": f"Ocurrió un error al generar la respuesta: {str(e)}", "context": "", "tipo": "error"}
         return {"response": texto, "context": "", "tipo": "redireccion"}
 
-    def _procesar(self, question: str, turnos: list) -> dict:
+    def _procesar(self, question: str, turnos: list, perfil: PerfilEstudiante | None = None) -> dict:
         """Flujo completo (ver `_flujo`) y registro de dónde cae la consulta en el sílabo: `ubicacion` =
         {unidad, tema_id, tema, metodo} si la pregunta es del temario, None si se redirigió o no aplica."""
-        traza: dict = {}
+        traza: dict = {"perfil": perfil}
         resultado = self._flujo(question, turnos, traza)
         ubicacion = traza.get("ubicacion")
         resultado["ubicacion"] = ubicacion.como_dict() if ubicacion else None
@@ -499,7 +575,8 @@ class RAGService:
         _log_tutor(intencion, question, autonoma)
         mejor = max((score for _, score in resultados), default=0.0)
         return self._responder_con_contexto(question, autonoma, [d for d, _ in resultados], turnos, intencion, mejor,
-                                            insistencia=insistente, cambio_de_rol=cambio_de_rol)
+                                            insistencia=insistente, cambio_de_rol=cambio_de_rol,
+                                            perfil=traza.get("perfil"), ubicacion=traza.get("ubicacion"))
 
     def _titulo_documento(self, nombre_archivo: str) -> str:
         """Título del documento (primera línea del .md), p. ej. 'ISO/IEC 25010 — Modelo de Calidad…'."""
@@ -517,7 +594,8 @@ class RAGService:
 
     def _responder_con_contexto(self, question: str, autonoma: str, docs: list[Document],
                                 turnos: list, intencion: str = tutor.PUNTUAL, mejor_score: float = 1.0,
-                                insistencia: int = 0, cambio_de_rol: bool = False) -> dict:
+                                insistencia: int = 0, cambio_de_rol: bool = False,
+                                perfil: PerfilEstudiante | None = None, ubicacion=None) -> dict:
         fragmentos = []
         for doc in docs:
             nombre = doc.metadata.get("nombre_archivo", "")
@@ -531,9 +609,13 @@ class RAGService:
         fuentes = "; ".join(dict.fromkeys(f"«{titulo or nombre.removesuffix('.md')}»"
                                           for nombre, titulo, _ in fragmentos[:3])) or "ninguno"
 
+        # Ajuste al estudiante: cambia cómo se explica (extensión, andamiaje, referencias a lo ya visto), no el contenido.
+        # Sin perfil (o con perfil neutro) es vacío y el prompt sale igual que siempre.
+        ajuste = adaptacion.construir_adaptacion(perfil, ubicacion, intencion)
         variables = {
-            "modo": tutor.INSTRUCCIONES_MODO.get(intencion, tutor.INSTRUCCIONES_MODO[tutor.PUNTUAL]),
-            "recordatorio": tutor.RECORDATORIOS.get(intencion, tutor.RECORDATORIOS[tutor.PUNTUAL])
+            "modo": tutor.instrucciones_modo(intencion, ajuste.profundidad),
+            "adaptacion": ajuste.texto,
+            "recordatorio": tutor.recordatorio(intencion, ajuste.profundidad) + ajuste.recordatorio
             + tutor.RECORDATORIO_CITAS.format(fuentes=fuentes),
             "documentos": ", ".join(documentos) or "(ninguno)",
             "silabo": texto_silabo(),
@@ -575,7 +657,9 @@ class RAGService:
         # Lo que respalda una cita: el contexto recuperado (con los títulos de sus documentos), la conversación
         # y los títulos de las unidades del sílabo. No cuentan la lista completa de documentos ni los temas del
         # sílabo: un LLM pequeño cita normas o técnicas "relacionadas" que no salen del contexto.
-        respaldo = " ".join([contexto, historial, question, autonoma, texto_silabo(con_temas=False)])
+        # (los temas ya trabajados que la directiva pide citar son nombres del sílabo: se pueden nombrar, no explicar)
+        respaldo = " ".join([contexto, historial, question, autonoma, texto_silabo(con_temas=False),
+                             *(nombre for _, nombre, _ in ajuste.referencias)])
 
         def sin_respaldo(texto: str) -> list[str]:
             return list(dict.fromkeys(tutor.normas_no_respaldadas(texto, respaldo)
@@ -608,7 +692,12 @@ class RAGService:
                 if tutor.numero_de_pasos(mejor_respuesta) > tutor.numero_de_pasos(response):
                     response = mejor_respuesta
             if intencion == tutor.PUNTUAL:
-                response = tutor.terminar_con_pregunta(self.llm, response)
+                if ajuste.exigencia != "normal":
+                    # La pregunta de cierre se regenera con la exigencia del nivel; si nombra algo sin respaldo se deja la original
+                    con_pregunta = tutor.ajustar_pregunta_final(self.llm, response, ajuste.exigencia)
+                    if con_pregunta != response and not sin_respaldo(con_pregunta):
+                        response = con_pregunta
+                response = tutor.terminar_con_pregunta(self.llm, response, ajuste.exigencia)
         except Exception as e:
             response = f"Ocurrió un error al generar la respuesta: {str(e)}"
             tipo = "error"
@@ -618,6 +707,10 @@ class RAGService:
             "context": contexto[:1000],
             "tipo": tipo,
             "fuentes": nombres_fuentes,
+            # Ajuste con el que se generó: el caché guarda la respuesta bajo este segmento y no comparte las personales
+            "segmento": ajuste.segmento,
+            "personal": ajuste.personal,
+            "adaptacion": ajuste.como_dict() if perfil is not None else None,
         }
 
     def _responder_sobre_tutor(self, question: str) -> dict:
@@ -672,6 +765,10 @@ def _log_filtro(decision: str, pregunta: str, score: float | None = None, veredi
 
 def _log_cache(mensaje: str) -> None:
     print(f"[CACHE] {mensaje}".encode("ascii", "backslashreplace").decode("ascii"))
+
+
+def _log_perfil(mensaje: str) -> None:
+    print(f"[PERFIL] {mensaje}".encode("ascii", "backslashreplace").decode("ascii"))
 
 
 def _log_tutor(intencion: str, pregunta: str, autonoma: str) -> None:

@@ -493,3 +493,177 @@ def test_estadisticas_responde_503_si_el_cache_esta_desactivado(rag):
     app.include_router(cache_router, prefix="/api/v1")
     app.dependency_overrides[get_rag_service] = lambda: rag      # `rag` de conftest: caché apagado
     assert TestClient(app).get("/api/v1/cache/estadisticas").status_code == 503
+
+
+# ================================================================ caché segmentado por el ajuste al estudiante (perfil)
+#
+# Una respuesta guardada para un estudiante de nivel 2 no sirve a uno de nivel 5: la clave incluye el `segmento`, que es
+# función de lo que la directiva del prompt realmente dijo. Ver "Semantic cache" en CLAUDE.md.
+
+def _guardar_seg(cache, segmento, pregunta=Q1, respuesta="R", tipo="respuesta"):
+    return cache.guardar(pregunta, vec(1.0), respuesta, "ctx", ["a.md"], tipo, 1000.0, cache.version(), segmento=segmento)
+
+
+def test_una_respuesta_guardada_para_un_segmento_no_se_sirve_a_otro(cache):
+    _guardar_seg(cache, "n=bajo", respuesta="para bajo")
+    assert cache.buscar(Q1, vec(1.0), "n=bajo").respuesta == "para bajo"
+    assert cache.buscar(Q1, vec(1.0), "n=alto") is None
+    assert cache.buscar(Q1, vec(1.0), "n=bajo|p=extensa") is None
+    assert cache.buscar(Q1, vec(1.0), "") is None and cache.buscar(Q1, vec(1.0)) is None   # tampoco al neutro
+
+
+def test_una_respuesta_sin_ajuste_no_se_sirve_a_quien_necesita_uno(cache):
+    _guardar(cache, Q1)                                              # segmento por defecto: ''
+    assert cache.buscar(Q1, vec(1.0), "").respuesta == "R" and cache.buscar(Q1, vec(1.0)).respuesta == "R"
+    assert cache.buscar(Q1, vec(1.0), "n=bajo") is None
+
+
+def test_sin_contexto_no_se_adapta_y_se_comparte_entre_todos_los_segmentos(cache):
+    _guardar_seg(cache, "n=bajo", respuesta="eso no está en los documentos", tipo="sin_contexto")
+    assert _filas(cache, "SELECT segmento FROM respuestas") == [("",)]      # se guarda sin segmento aunque se pidiera con uno
+    for segmento in ("", "n=bajo", "n=alto|p=breve|e=ejemplos"):
+        assert cache.buscar(Q1, vec(1.0), segmento).respuesta == "eso no está en los documentos"
+
+
+def test_los_filtros_de_intencion_y_huella_siguen_aplicando_dentro_del_segmento(cache):
+    _guardar_seg(cache, "n=bajo", pregunta="¿Qué es ISO 9001?")
+    assert cache.buscar("¿Qué es ISO 27001?", vec(1.0), "n=bajo") is None
+
+
+def test_una_base_anterior_al_perfil_se_migra_y_sus_entradas_quedan_sin_ajuste(tmp_path):
+    ruta = tmp_path / "vieja.db"
+    con = sqlite3.connect(ruta)
+    con.executescript("""
+        CREATE TABLE respuestas (id INTEGER PRIMARY KEY AUTOINCREMENT, pregunta TEXT NOT NULL, embedding BLOB NOT NULL,
+            intencion TEXT NOT NULL, huella TEXT NOT NULL, respuesta TEXT NOT NULL, contexto TEXT NOT NULL,
+            fuentes TEXT NOT NULL, tipo TEXT NOT NULL, usos INTEGER NOT NULL DEFAULT 0,
+            tiempo_generacion_ms REAL NOT NULL, creado_en TEXT NOT NULL, ultimo_uso TEXT NOT NULL);
+        CREATE INDEX idx_respuestas_clave ON respuestas (intencion, huella);
+        CREATE TABLE meta (clave TEXT PRIMARY KEY, valor);
+        INSERT INTO meta VALUES ('version', 0);""")
+    con.execute("INSERT INTO respuestas (pregunta, embedding, intencion, huella, respuesta, contexto, fuentes, tipo, "
+                "tiempo_generacion_ms, creado_en, ultimo_uso) VALUES (?, ?, ?, ?, 'vieja', 'c', '[]', 'respuesta', 5, 'x', 'x')",
+                (Q1, vec(1.0).astype(np.float32).tobytes(), intencion_de(Q1), huella_de(Q1)))
+    con.commit()
+    con.close()
+
+    migrada = CacheSemantico(ruta, umbral=0.92)
+    assert "segmento" in {f[1] for f in _filas(migrada, "PRAGMA table_info(respuestas)")}
+    assert migrada.buscar(Q1, vec(1.0), "").respuesta == "vieja"       # lo que ya había era sin ajuste
+    assert migrada.buscar(Q1, vec(1.0), "n=bajo") is None
+    CacheSemantico(ruta, umbral=0.92)                                  # abrirla otra vez no falla (idempotente)
+
+
+def test_estadisticas_por_segmento_y_consultas_omitidas_por_perfil(cache):
+    _guardar_seg(cache, "")
+    _guardar_seg(cache, "n=bajo")
+    _guardar_seg(cache, "n=bajo", pregunta="¿Qué es ISO 9001?")
+    for _ in range(3):
+        cache.registrar_omision_por_perfil()
+    e = cache.estadisticas()
+    assert e["entradas_por_segmento"] == {"neutro": 1, "n=bajo": 2} and e["omitidos_por_perfil"] == 3
+    assert e["consultas"] == 0, "una omisión por perfil no es un fallo del caché"
+
+
+# ---- integración: estudiantes con perfiles distintos
+
+QI, QI2 = "¿Qué es ISO 9001?", "Dime qué es ISO 9001"            # misma pregunta redactada distinto (similitud 0.95)
+QS, QS2 = "¿Qué es ISO 29119?", "Dime qué es ISO 29119"          # tema sin documento: el tutor responde `sin_contexto`
+
+
+def _sembrar(rig, user_id, **campos):
+    from app.models.perfil import PerfilEstudiante
+    rig.rag.perfiles.guardar(PerfilEstudiante(user_id=user_id, **campos))
+
+
+@pytest.fixture
+def rig_perfil(rig):
+    rig.emb.fijos.update({QI: vec(1.0), QI2: vec(0.95), QS: vec(1.0), QS2: vec(0.95)})
+    return rig
+
+
+def test_lo_cacheado_para_un_nivel_no_se_sirve_a_otro_y_cada_uno_recupera_lo_suyo(rig_perfil):
+    rig = rig_perfil
+    _sembrar(rig, "novato", nivel_por_unidad={2: 1.8})
+    _sembrar(rig, "avanzado", nivel_por_unidad={2: 4.6})
+    rig.llm.respuesta = "Respuesta pensada para novato. ¿Cómo la usarías?"
+    r1 = rig.rag.get_answer(QI, conversation_id="a", user_id="novato")
+    rig.llm.respuesta = "Respuesta pensada para avanzado. ¿Por qué?"
+    r2 = rig.rag.get_answer(QI, conversation_id="b", user_id="avanzado")
+    assert r1["desde_cache"] is False and r2["desde_cache"] is False, "el avanzado NO recibe la respuesta cacheada del novato"
+    assert r1["response"] != r2["response"] and r2["adaptacion"]["segmento"] == "n=alto"
+
+    llamadas = rig.llm.llamadas
+    r3 = rig.rag.get_answer(QI2, conversation_id="c", user_id="novato")
+    r4 = rig.rag.get_answer(QI2, conversation_id="d", user_id="avanzado")
+    assert (r3["desde_cache"], r3["response"]) == (True, r1["response"]) and r3["adaptacion"]["segmento"] == "n=bajo"
+    assert (r4["desde_cache"], r4["response"]) == (True, r2["response"]) and r4["adaptacion"]["segmento"] == "n=alto"
+    assert rig.llm.llamadas == llamadas, "los aciertos de su propio segmento no llaman al LLM"
+
+    assert rig.rag.get_answer(QI, conversation_id="e")["desde_cache"] is False     # un anónimo no recibe ninguna de las dos
+    assert rig.cache.estadisticas()["entradas_por_segmento"] == {"n=bajo": 1, "n=alto": 1, "neutro": 1}
+
+
+def test_la_profundidad_preferida_tambien_segmenta(rig_perfil):
+    rig = rig_perfil
+    _sembrar(rig, "breve", profundidad_preferida="breve")
+    _sembrar(rig, "extensa", profundidad_preferida="extensa")
+    rig.rag.get_answer(QI, conversation_id="a", user_id="breve")
+    assert rig.rag.get_answer(QI2, conversation_id="b", user_id="extensa")["desde_cache"] is False
+    assert rig.rag.get_answer(QI2, conversation_id="c", user_id="breve")["desde_cache"] is True
+    assert set(rig.cache.estadisticas()["entradas_por_segmento"]) == {"p=breve", "p=extensa"}
+
+
+def test_un_estudiante_nuevo_comparte_el_cache_con_los_anonimos_y_su_perfil_se_actualiza_igual(rig_perfil):
+    rig = rig_perfil
+    r1 = rig.rag.get_answer(QI, conversation_id="a")                                   # anónimo: llena el caché
+    r2 = rig.rag.get_answer(QI2, conversation_id="b", user_id="recien-llegado")
+    assert r2["desde_cache"] is True and r2["response"] == r1["response"] and r2["adaptacion"]["segmento"] == ""
+    assert rig.rag.perfiles.obtener("recien-llegado").temas_consultados == {"2.2": 1}, "un acierto también alimenta el perfil"
+
+
+def test_una_respuesta_que_cita_lo_ya_trabajado_es_personal_y_no_pasa_por_el_cache(rig_perfil):
+    rig = rig_perfil
+    _sembrar(rig, "ana", historial_resumido=[
+        {"tema_id": "2.5", "tema": "ISO/IEC 25010: calidad del producto de software", "unidad": 2, "fecha": "2026-09-01"}])
+    r1 = rig.rag.get_answer(QI, conversation_id="a", user_id="ana")
+    r2 = rig.rag.get_answer(QI, conversation_id="b", user_id="ana")
+    assert r1["desde_cache"] is False and r2["desde_cache"] is False and r2["adaptacion"]["referencias"]
+    assert _entradas(rig.cache) == 0, "lo personal no se guarda"
+    e = rig.cache.estadisticas()
+    assert e["omitidos_por_perfil"] == 2 and e["consultas"] == 0
+    # y lo personal de una persona no se le sirve a otra aunque se hubiera guardado algo de la misma pregunta
+    rig.rag.get_answer(QI, conversation_id="c")
+    assert rig.rag.get_answer(QI2, conversation_id="d", user_id="ana")["desde_cache"] is False
+
+
+def test_si_al_terminar_la_respuesta_resulta_personal_no_se_guarda(rig_perfil):
+    """La unidad se estima antes del filtro; si el filtro la cambia y la respuesta acaba citando lo trabajado, es suya."""
+    rig = rig_perfil
+    consulta = rag_module._ConsultaCache(rig.emb.embed_query(QI), rig.cache.version(), None)
+    resultado = {"response": "Como viste en…", "context": "", "tipo": "respuesta", "fuentes": [], "tiempo_respuesta_ms": 10.0,
+                 "segmento": "", "personal": True}
+    rig.rag._anotar_en_cache(QI, consulta, resultado)
+    assert _entradas(rig.cache) == 0 and rig.cache.estadisticas()["omitidos_por_perfil"] == 1
+
+
+def test_lo_guardado_lleva_el_segmento_del_ajuste_realmente_usado(rig_perfil):
+    rig = rig_perfil
+    _sembrar(rig, "novato", nivel_por_unidad={2: 1.8}, profundidad_preferida="extensa", estilo_preferido="ejemplos")
+    rig.rag.get_answer(QI, conversation_id="a", user_id="novato")
+    assert _filas(rig.cache, "SELECT segmento, tipo FROM respuestas") == [("n=bajo|p=extensa|e=ejemplos", "respuesta")]
+
+
+def test_sin_contexto_se_comparte_entre_estudiantes_de_distinto_perfil_y_anonimos(rig_perfil):
+    rig = rig_perfil
+    _sembrar(rig, "novato", nivel_por_unidad={4: 1.8})
+    _sembrar(rig, "avanzado", nivel_por_unidad={4: 4.6})
+    r1 = rig.rag.get_answer(QS, conversation_id="a", user_id="novato")
+    assert r1["tipo"] == "sin_contexto" and r1["desde_cache"] is False and r1["adaptacion"] is None   # no se adapta
+    assert _filas(rig.cache, "SELECT segmento, tipo FROM respuestas") == [("", "sin_contexto")]
+    llamadas = rig.llm.llamadas
+    for user_id in ("avanzado", None):
+        r = rig.rag.get_answer(QS2, conversation_id=f"c-{user_id}", user_id=user_id)
+        assert r["desde_cache"] is True and r["tipo"] == "sin_contexto" and r["response"] == r1["response"]
+        assert r["adaptacion"] is None
+    assert rig.llm.llamadas == llamadas

@@ -1,3 +1,7 @@
 # Caché semántico de respuestas: datos de ejecución (SQLite), no se versionan
 cache_respuestas.db
 cache_respuestas.db-*
+
+# Perfiles de estudiantes (nivel, historial, ritmo): datos personales de ejecución, no se versionan
+perfiles.db
+perfiles.db-*

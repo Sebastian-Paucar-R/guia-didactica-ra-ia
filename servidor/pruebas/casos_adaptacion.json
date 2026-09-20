@@ -1,0 +1,53 @@
+{
+  "descripcion": "Casos de adaptación al estudiante: tres estudiantes con perfiles distintos hacen la MISMA pregunta y el tutor debe explicar distinto (forma) sin cambiar lo que dice la norma (contenido). Los perfiles se siembran en perfiles.db antes de cada pregunta (así lo que se pregunta antes no contamina el historial de la siguiente). Las preguntas son de temas con cobertura 'cubierto' en reportes/cobertura_silabo.md.",
+  "estudiantes": {
+    "novato": {
+      "descripcion": "Nivel bajo en la Unidad 2 (1,8), prefiere explicaciones extensas y con ejemplos. Solo ha visto Scrum (otra unidad): nada que citar.",
+      "perfil": {
+        "nivel_por_unidad": {"2": 1.8},
+        "profundidad_preferida": "extensa",
+        "estilo_preferido": "ejemplos",
+        "historial_resumido": [
+          {"tema_id": "1.2", "tema": "Scrum (roles, eventos y artefactos)", "unidad": 1, "fecha": "2026-09-01T10:00:00+00:00"}
+        ]
+      }
+    },
+    "estandar": {
+      "descripcion": "Estudiante nuevo: perfil inicial (nivel 3, profundidad media, estilo conceptual). Recibe el prompt de siempre y comparte el caché con los anónimos.",
+      "perfil": {}
+    },
+    "avanzado": {
+      "descripcion": "Nivel alto en la Unidad 2 (4,6), prefiere respuestas breves y comparativas. Ya trabajó ISO 9001 e ISO/IEC 25010 (misma unidad): el tutor puede apoyarse en ello.",
+      "perfil": {
+        "nivel_por_unidad": {"2": 4.6},
+        "profundidad_preferida": "breve",
+        "estilo_preferido": "comparativo",
+        "historial_resumido": [
+          {"tema_id": "2.2", "tema": "ISO 9001: sistema de gestión de la calidad", "unidad": 2, "fecha": "2026-09-01T10:00:00+00:00"},
+          {"tema_id": "2.5", "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software", "unidad": 2, "fecha": "2026-09-02T10:00:00+00:00"}
+        ]
+      }
+    }
+  },
+  "preguntas": [
+    {"id": "A1", "pregunta": "¿Qué es ISO 9001?", "tema_id": "2.2", "anclas": [["9001"], ["calidad"]],
+     "prohibido": ["no (?:es|está|son|están) (?:\\w+ ){0,4}certificable", "no (?:es|está|están) (?:\\w+ ){0,3}dise\\w+ para (?:la )?certific",
+                   "norma de directrices", "guidance"]},
+    {"id": "A2", "pregunta": "¿Qué es ISO/IEC 25010?", "tema_id": "2.5", "anclas": [["25010"], ["calidad"]], "prohibido": ["_calidad_producto_software"]},
+    {"id": "A3", "pregunta": "¿Qué es ISO/IEC/IEEE 12207?", "tema_id": "2.3", "anclas": [["12207"], ["ciclo de vida", "procesos"]],
+     "prohibido": ["tres niveles", "madera"]}
+  ],
+  "_nota_prohibido": "Expresiones regulares (sin distinguir mayúsculas) de afirmaciones que los documentos indexados contradicen o no contienen para esa norma, o de fugas de formato. Se añadieron tras las corridas reales: la 1.ª mostró un contraste que le trasladó a ISO 9001 lo que el documento dice de ISO 31000 («no certificable») y una analogía que inventó niveles de madurez («tres niveles… madera, pino, roble») en ISO/IEC/IEEE 12207; la 2.ª, la misma contaminación dicha con otras palabras («no está diseñada para certificación») y la etiqueta interna de un documento pegada en la respuesta. Los verdictos automáticos habían dicho «contenido normativo ✅» las dos veces: solo la lectura de las respuestas lo detectó. Sigue siendo una lista de fallos ya vistos, no una garantía.",
+  "evolucion": {
+    "descripcion": "Un estudiante real (sin perfil sembrado) que dice no entender y pide ejemplos. El perfil debe moverse poco a poco y por lo que hace, no por lo que dice de sí mismo. Los mensajes nombran su tema: un seguimiento pelado («Dame otro ejemplo») depende de que el reformulador del filtro lo entienda y en la primera corrida real el filtro redirigió dos de ellos como fuera de tema (limitación previa al perfil, ver BITACORA).",
+    "turnos": [
+      "¿Qué es ISO 9001?",
+      "No entendí, explícame eso mejor",
+      "Sigo sin entender ISO 9001, explícamelo otra vez",
+      "Dame un ejemplo de ISO 9001",
+      "Dame otro ejemplo de ISO 9001 en un equipo pequeño",
+      "Muéstrame un ejemplo más de ISO 9001 en una startup"
+    ],
+    "pregunta_final": "¿Qué es ISO 9001?"
+  }
+}

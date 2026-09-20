@@ -1,0 +1,918 @@
+{
+  "metadatos": {
+    "fecha": "2026-09-20 07:13",
+    "url": "http://127.0.0.1:8000",
+    "etiqueta": "llama3.2-real-final",
+    "run": "752048c6",
+    "estudiantes": {
+      "novato": "Nivel bajo en la Unidad 2 (1,8), prefiere explicaciones extensas y con ejemplos. Solo ha visto Scrum (otra unidad): nada que citar.",
+      "estandar": "Estudiante nuevo: perfil inicial (nivel 3, profundidad media, estilo conceptual). Recibe el prompt de siempre y comparte el caché con los anónimos.",
+      "avanzado": "Nivel alto en la Unidad 2 (4,6), prefiere respuestas breves y comparativas. Ya trabajó ISO 9001 e ISO/IEC 25010 (misma unidad): el tutor puede apoyarse en ello."
+    },
+    "descripcion_evolucion": "Un estudiante real (sin perfil sembrado) que dice no entender y pide ejemplos. El perfil debe moverse poco a poco y por lo que hace, no por lo que dice de sí mismo. Los mensajes nombran su tema: un seguimiento pelado («Dame otro ejemplo») depende de que el reformulador del filtro lo entienda y en la primera corrida real el filtro redirigió dos de ellos como fuera de tema (limitación previa al perfil, ver BITACORA).",
+    "pregunta_final": "¿Qué es ISO 9001?"
+  },
+  "misma_pregunta": [
+    {
+      "id": "A1",
+      "pregunta": "¿Qué es ISO 9001?",
+      "tema_id": "2.2",
+      "primera": {
+        "novato": {
+          "respuesta": "Imagina que estás trabajando en un equipo de desarrollo de software y necesitas cumplir con las expectativas de tus clientes. Para asegurarte de que todo salga bien, decides implementar un sistema de gestión de calidad (SGC) que te ayude a controlar los procesos y garantizar la satisfacción del cliente. Este SGC es lo que se refiere a ISO 9001 — Sistemas de Gestión de la Calidad. La norma proporciona una guía para implementar un sistema de gestión de calidad en cualquier organización, incluyendo empresas de desarrollo de software.\n\nISO 9001 no solo se enfoca en la calidad del producto, sino que también aborda aspectos como la seguridad de la información y el gobierno de riesgos. Por ejemplo, si una empresa de TI tiene una certificación en ISO 27001, esto significa que ha implementado un sistema de gestión integrado de calidad y seguridad para proteger sus datos y mantener la confidencialidad.\n\nLa relación entre ISO 9001 y otras normas es importante: por ejemplo, ISO/IEC 12207 proporciona detalles técnicos específicos sobre los procesos del ciclo de vida del software que complementan el enfoque general de gestión de calidad introducido en ISO 9001. ¿Cómo implementaría ISO 9001 en tu proyecto actual para garantizar la calidad del producto final?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 7857.2,
+          "adaptacion": {
+            "nivel": "bajo",
+            "profundidad": "extensa",
+            "estilo": "ejemplos",
+            "dificultad": false,
+            "segmento": "n=bajo|p=extensa|e=ejemplos",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.2",
+            "tema": "ISO 9001: sistema de gestión de la calidad",
+            "metodo": "palabras_clave"
+          }
+        },
+        "estandar": {
+          "respuesta": "ISO 9001 es un estándar internacional para Sistemas de Gestión de la Calidad (SGC) que proporciona principios, un marco de referencia y un proceso genérico para gestionar la calidad en cualquier tipo de organización. Aunque no fue creado específicamente para software, se utiliza ampliamente por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. La certificación ISO 9001 es otorgada por organismos de certificación acreditados mediante auditorías externas periódicas.\n\n¿Cómo relaciona la comprensión de esta norma con el desarrollo de software?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 2094.3,
+          "adaptacion": {
+            "nivel": "medio",
+            "profundidad": "media",
+            "estilo": "conceptual",
+            "dificultad": false,
+            "segmento": "",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.2",
+            "tema": "ISO 9001: sistema de gestión de la calidad",
+            "metodo": "palabras_clave"
+          }
+        },
+        "avanzado": {
+          "respuesta": "ISO 9001 es la norma internacional más adoptada en el mundo para Sistemas de Gestión de la Calidad (SGC). Aunque no fue creada específicamente para software, es ampliamente utilizada por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. ¿Qué pasaría si una empresa de software aplicara ISO 9001 a su proyecto sin ajustar adecuadamente sus procesos?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 1957.4,
+          "adaptacion": {
+            "nivel": "alto",
+            "profundidad": "breve",
+            "estilo": "comparativo",
+            "dificultad": false,
+            "segmento": "n=alto|p=breve|e=comparativo",
+            "referencias": [
+              {
+                "tema_id": "2.5",
+                "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+                "unidad": 2
+              }
+            ]
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.2",
+            "tema": "ISO 9001: sistema de gestión de la calidad",
+            "metodo": "palabras_clave"
+          }
+        }
+      },
+      "segunda": {
+        "novato": {
+          "respuesta": "Imagina que estás trabajando en un equipo de desarrollo de software y necesitas cumplir con las expectativas de tus clientes. Para asegurarte de que todo salga bien, decides implementar un sistema de gestión de calidad (SGC) que te ayude a controlar los procesos y garantizar la satisfacción del cliente. Este SGC es lo que se refiere a ISO 9001 — Sistemas de Gestión de la Calidad. La norma proporciona una guía para implementar un sistema de gestión de calidad en cualquier organización, incluyendo empresas de desarrollo de software.\n\nISO 9001 no solo se enfoca en la calidad del producto, sino que también aborda aspectos como la seguridad de la información y el gobierno de riesgos. Por ejemplo, si una empresa de TI tiene una certificación en ISO 27001, esto significa que ha implementado un sistema de gestión integrado de calidad y seguridad para proteger sus datos y mantener la confidencialidad.\n\nLa relación entre ISO 9001 y otras normas es importante: por ejemplo, ISO/IEC 12207 proporciona detalles técnicos específicos sobre los procesos del ciclo de vida del software que complementan el enfoque general de gestión de calidad introducido en ISO 9001. ¿Cómo implementaría ISO 9001 en tu proyecto actual para garantizar la calidad del producto final?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 8.6,
+          "adaptacion": {
+            "nivel": "bajo",
+            "profundidad": "extensa",
+            "estilo": "ejemplos",
+            "dificultad": false,
+            "segmento": "n=bajo|p=extensa|e=ejemplos",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.2",
+            "tema": "ISO 9001: sistema de gestión de la calidad",
+            "metodo": "palabras_clave"
+          }
+        },
+        "estandar": {
+          "respuesta": "ISO 9001 es un estándar internacional para Sistemas de Gestión de la Calidad (SGC) que proporciona principios, un marco de referencia y un proceso genérico para gestionar la calidad en cualquier tipo de organización. Aunque no fue creado específicamente para software, se utiliza ampliamente por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. La certificación ISO 9001 es otorgada por organismos de certificación acreditados mediante auditorías externas periódicas.\n\n¿Cómo relaciona la comprensión de esta norma con el desarrollo de software?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 10.9,
+          "adaptacion": {
+            "nivel": "medio",
+            "profundidad": "media",
+            "estilo": "conceptual",
+            "dificultad": false,
+            "segmento": "",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.2",
+            "tema": "ISO 9001: sistema de gestión de la calidad",
+            "metodo": "palabras_clave"
+          }
+        },
+        "avanzado": {
+          "respuesta": "ISO 9001 es la norma internacional más adoptada en el mundo para Sistemas de Gestión de la Calidad (SGC). Aunque no fue creada específicamente para software, es ampliamente utilizada por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. ¿Qué beneficios específicos podría una empresa de software obtener al implementar ISO 9001 en su proceso de desarrollo?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 1544.1,
+          "adaptacion": {
+            "nivel": "alto",
+            "profundidad": "breve",
+            "estilo": "comparativo",
+            "dificultad": false,
+            "segmento": "n=alto|p=breve|e=comparativo",
+            "referencias": [
+              {
+                "tema_id": "2.5",
+                "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+                "unidad": 2
+              }
+            ]
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.2",
+            "tema": "ISO 9001: sistema de gestión de la calidad",
+            "metodo": "palabras_clave"
+          }
+        },
+        "anonimo": {
+          "respuesta": "ISO 9001 es un estándar internacional para Sistemas de Gestión de la Calidad (SGC) que proporciona principios, un marco de referencia y un proceso genérico para gestionar la calidad en cualquier tipo de organización. Aunque no fue creado específicamente para software, se utiliza ampliamente por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. La certificación ISO 9001 es otorgada por organismos de certificación acreditados mediante auditorías externas periódicas.\n\n¿Cómo relaciona la comprensión de esta norma con el desarrollo de software?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 8.0,
+          "adaptacion": null,
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.2",
+            "tema": "ISO 9001: sistema de gestión de la calidad",
+            "metodo": "palabras_clave"
+          }
+        }
+      },
+      "analisis": {
+        "tipos_ok": true,
+        "identificadores": {
+          "novato": [
+            "ISO 27001",
+            "ISO 9001",
+            "ISO/IEC 12207"
+          ],
+          "estandar": [
+            "ISO 9001"
+          ],
+          "avanzado": [
+            "ISO 9001"
+          ]
+        },
+        "no_respaldados": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "anclas_que_faltan": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "afirmaciones_contradichas": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "palabras": {
+          "novato": 205,
+          "estandar": 87,
+          "avanzado": 63
+        },
+        "similitud_entre_pares": {
+          "novato~estandar": 0.06,
+          "novato~avanzado": 0.06,
+          "estandar~avanzado": 0.45
+        },
+        "segmentos": {
+          "novato": "n=bajo|p=extensa|e=ejemplos",
+          "estandar": "",
+          "avanzado": "n=alto|p=breve|e=comparativo"
+        },
+        "marca_analogia": {
+          "novato": true,
+          "estandar": false,
+          "avanzado": true
+        },
+        "marca_socratica_avanzado": true,
+        "cierra_en_pregunta_avanzado": true,
+        "referencias": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": [
+            "2.5"
+          ]
+        },
+        "cache": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false,
+          "anonimo": true
+        },
+        "cache_esperado": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false
+        },
+        "recibio_lo_suyo": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false
+        },
+        "recibio_lo_de_otro": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "anonimo_recibe_lo_del_estandar": true,
+        "verdictos": {
+          "contenido_normativo": true,
+          "forma_distinta": true,
+          "ajustes_distintos": true,
+          "cache_por_segmento": true
+        }
+      }
+    },
+    {
+      "id": "A2",
+      "pregunta": "¿Qué es ISO/IEC 25010?",
+      "tema_id": "2.5",
+      "primera": {
+        "novato": {
+          "respuesta": "La calidad del producto de software es un concepto complejo que abarca varios aspectos como la funcionalidad, la usabilidad y la fiabilidad del software. En este sentido, ISO/IEC 25010 define una serie de criterios para evaluar la calidad del producto de software, como la precisión, la exactitud, el rendimiento y la capacidad de cumplir con requisitos.\n\nImagina que estás trabajando en un proyecto de desarrollo de software y necesitas asegurarte de que tu aplicación cumpla con ciertos estándares de calidad. La norma ISO/IEC 25010 te proporciona una guía para evaluar cómo se comporta tu producto frente a estos criterios, lo cual es fundamental para garantizar la satisfacción del cliente. ¿Cómo evaluarás la precisión en tu aplicación para garantizar su funcionalidad correcta?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 2628.9,
+          "adaptacion": {
+            "nivel": "bajo",
+            "profundidad": "extensa",
+            "estilo": "ejemplos",
+            "dificultad": false,
+            "segmento": "n=bajo|p=extensa|e=ejemplos",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.5",
+            "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "estandar": {
+          "respuesta": "ISO/IEC 25010 es un estándar de calidad del producto de software que describe las características y requisitos para la calidad del producto, incluyendo aspectos como la precisión, la completitud, el rendimiento y la usabilidad. Aunque se menciona en ISO 9001 como complemento, no es una norma independiente. Se recomienda consultar el texto oficial de ISO/IEC 29110 para obtener más información sobre cómo se relaciona con este estándar.\n\n¿Cómo crees que las empresas pueden aplicar la calidad del producto descrita en ISO/IEC 25010 en su desarrollo de software?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 1768.5,
+          "adaptacion": {
+            "nivel": "medio",
+            "profundidad": "media",
+            "estilo": "conceptual",
+            "dificultad": false,
+            "segmento": "",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.5",
+            "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "avanzado": {
+          "respuesta": "ISO/IEC 25010 es un estándar que define las características y requisitos para la calidad del producto de software, estableciendo criterios para evaluar y mejorar la calidad del software. A diferencia de ISO 9001, que se centra en la gestión de calidad organizacional, ISO/IEC 25010 se enfoca específicamente en los aspectos técnicos y funcionales de la calidad del producto de software. ¿Qué características técnicas y funcionales de una aplicación de software se evaluarían según ISO/IEC 25010?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 2392.1,
+          "adaptacion": {
+            "nivel": "alto",
+            "profundidad": "breve",
+            "estilo": "comparativo",
+            "dificultad": false,
+            "segmento": "n=alto|p=breve|e=comparativo",
+            "referencias": [
+              {
+                "tema_id": "2.2",
+                "tema": "ISO 9001: sistema de gestión de la calidad",
+                "unidad": 2
+              }
+            ]
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.5",
+            "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+            "metodo": "palabras_clave"
+          }
+        }
+      },
+      "segunda": {
+        "novato": {
+          "respuesta": "La calidad del producto de software es un concepto complejo que abarca varios aspectos como la funcionalidad, la usabilidad y la fiabilidad del software. En este sentido, ISO/IEC 25010 define una serie de criterios para evaluar la calidad del producto de software, como la precisión, la exactitud, el rendimiento y la capacidad de cumplir con requisitos.\n\nImagina que estás trabajando en un proyecto de desarrollo de software y necesitas asegurarte de que tu aplicación cumpla con ciertos estándares de calidad. La norma ISO/IEC 25010 te proporciona una guía para evaluar cómo se comporta tu producto frente a estos criterios, lo cual es fundamental para garantizar la satisfacción del cliente. ¿Cómo evaluarás la precisión en tu aplicación para garantizar su funcionalidad correcta?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 10.4,
+          "adaptacion": {
+            "nivel": "bajo",
+            "profundidad": "extensa",
+            "estilo": "ejemplos",
+            "dificultad": false,
+            "segmento": "n=bajo|p=extensa|e=ejemplos",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.5",
+            "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "estandar": {
+          "respuesta": "ISO/IEC 25010 es un estándar de calidad del producto de software que describe las características y requisitos para la calidad del producto, incluyendo aspectos como la precisión, la completitud, el rendimiento y la usabilidad. Aunque se menciona en ISO 9001 como complemento, no es una norma independiente. Se recomienda consultar el texto oficial de ISO/IEC 29110 para obtener más información sobre cómo se relaciona con este estándar.\n\n¿Cómo crees que las empresas pueden aplicar la calidad del producto descrita en ISO/IEC 25010 en su desarrollo de software?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 7.6,
+          "adaptacion": {
+            "nivel": "medio",
+            "profundidad": "media",
+            "estilo": "conceptual",
+            "dificultad": false,
+            "segmento": "",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.5",
+            "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "avanzado": {
+          "respuesta": "ISO/IEC 25010 es un estándar que define las características y requisitos para la calidad del producto de software. En otras palabras, se enfoca en los aspectos relacionados con la calidad del código, el rendimiento y la fiabilidad del software. ¿Qué características específicas del estándar ISO/IEC 25010 se aplicarían a una aplicación móvil para garantizar su calidad?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 1439.3,
+          "adaptacion": {
+            "nivel": "alto",
+            "profundidad": "breve",
+            "estilo": "comparativo",
+            "dificultad": false,
+            "segmento": "n=alto|p=breve|e=comparativo",
+            "referencias": [
+              {
+                "tema_id": "2.2",
+                "tema": "ISO 9001: sistema de gestión de la calidad",
+                "unidad": 2
+              }
+            ]
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.5",
+            "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "anonimo": {
+          "respuesta": "ISO/IEC 25010 es un estándar de calidad del producto de software que describe las características y requisitos para la calidad del producto, incluyendo aspectos como la precisión, la completitud, el rendimiento y la usabilidad. Aunque se menciona en ISO 9001 como complemento, no es una norma independiente. Se recomienda consultar el texto oficial de ISO/IEC 29110 para obtener más información sobre cómo se relaciona con este estándar.\n\n¿Cómo crees que las empresas pueden aplicar la calidad del producto descrita en ISO/IEC 25010 en su desarrollo de software?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 7.8,
+          "adaptacion": null,
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.5",
+            "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+            "metodo": "palabras_clave"
+          }
+        }
+      },
+      "analisis": {
+        "tipos_ok": true,
+        "identificadores": {
+          "novato": [
+            "ISO/IEC 25010"
+          ],
+          "estandar": [
+            "ISO 9001",
+            "ISO/IEC 25010",
+            "ISO/IEC 29110"
+          ],
+          "avanzado": [
+            "ISO 9001",
+            "ISO/IEC 25010"
+          ]
+        },
+        "no_respaldados": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "anclas_que_faltan": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "afirmaciones_contradichas": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "palabras": {
+          "novato": 121,
+          "estandar": 87,
+          "avanzado": 75
+        },
+        "similitud_entre_pares": {
+          "novato~estandar": 0.07,
+          "novato~avanzado": 0.11,
+          "estandar~avanzado": 0.22
+        },
+        "segmentos": {
+          "novato": "n=bajo|p=extensa|e=ejemplos",
+          "estandar": "",
+          "avanzado": "n=alto|p=breve|e=comparativo"
+        },
+        "marca_analogia": {
+          "novato": true,
+          "estandar": false,
+          "avanzado": false
+        },
+        "marca_socratica_avanzado": true,
+        "cierra_en_pregunta_avanzado": true,
+        "referencias": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": [
+            "2.2"
+          ]
+        },
+        "cache": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false,
+          "anonimo": true
+        },
+        "cache_esperado": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false
+        },
+        "recibio_lo_suyo": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false
+        },
+        "recibio_lo_de_otro": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "anonimo_recibe_lo_del_estandar": true,
+        "verdictos": {
+          "contenido_normativo": true,
+          "forma_distinta": true,
+          "ajustes_distintos": true,
+          "cache_por_segmento": true
+        }
+      }
+    },
+    {
+      "id": "A3",
+      "pregunta": "¿Qué es ISO/IEC/IEEE 12207?",
+      "tema_id": "2.3",
+      "primera": {
+        "novato": {
+          "respuesta": "ISO/IEC 12207 es como un plan de trabajo para una empresa de construcción. Imagina que tienes un proyecto de software grande y complejo, con muchas personas trabajando en él. Necesitas saber qué procesos seguir, cómo organizar el trabajo y cuándo terminar cada fase. De manera similar, ISO/IEC 12207 define los procesos del ciclo de vida del software, como la planificación, el desarrollo, pruebas y mantenimiento. Estos procesos son como las etapas de una construcción: primero hay un diseño detallado, luego se comienza a construir, después se verifica que todo esté en orden y finalmente se entrega al cliente.\n\nPero ¿qué es lo que produce ISO/IEC 12207? Una descripción de arquitectura. Esto significa que el proceso define cómo debe ser la estructura del software, como las relaciones entre los diferentes componentes y cómo deben funcionar todos juntos. En otras palabras,ISO/IEC 42010: ¿Qué es lo que produce ISO/IEC 12207?\n\n¿Cómo se relaciona TOGAF con ISO/IEC 42010?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 2941.9,
+          "adaptacion": {
+            "nivel": "bajo",
+            "profundidad": "extensa",
+            "estilo": "ejemplos",
+            "dificultad": false,
+            "segmento": "n=bajo|p=extensa|e=ejemplos",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.3",
+            "tema": "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "estandar": {
+          "respuesta": "ISO/IEC/IEEE 12207 es un estándar que define los procesos del ciclo de vida del software, estableciendo una estructura común para describir y gestionar las actividades involucradas en el desarrollo, implementación, pruebas y mantenimiento de sistemas de software. En particular, menciona la importancia de la \"diseñada\" arquitectura (es decir, según ISO/IEC 42010) como resultado del proceso de diseño de arquitectura definido por esta norma, que produce una descripción de arquitectura conforme a ISO/IEC/IEEE 42010. \n\n¿Qué relación existe entre el proceso de \"diseño de arquitectura\" y la creación de un documento formal de la arquitectura de sistemas de software complejos?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 2263.1,
+          "adaptacion": {
+            "nivel": "medio",
+            "profundidad": "media",
+            "estilo": "conceptual",
+            "dificultad": false,
+            "segmento": "",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.3",
+            "tema": "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "avanzado": {
+          "respuesta": "ISO/IEC 12207 es un estándar que define los procesos del ciclo de vida del software y describe cómo se aplican en una organización. Se enfoca en la planificación, implementación y mantenimiento de proyectos de desarrollo de software. En otras palabras, trata sobre cómo gestionar el proceso de creación de software. ¿Qué implicaciones tiene ISO/IEC 12207 para el enfoque de planificación y gestión del proyecto de software?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 2193.4,
+          "adaptacion": {
+            "nivel": "alto",
+            "profundidad": "breve",
+            "estilo": "comparativo",
+            "dificultad": false,
+            "segmento": "n=alto|p=breve|e=comparativo",
+            "referencias": [
+              {
+                "tema_id": "2.5",
+                "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+                "unidad": 2
+              },
+              {
+                "tema_id": "2.2",
+                "tema": "ISO 9001: sistema de gestión de la calidad",
+                "unidad": 2
+              }
+            ]
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.3",
+            "tema": "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software",
+            "metodo": "palabras_clave"
+          }
+        }
+      },
+      "segunda": {
+        "novato": {
+          "respuesta": "ISO/IEC 12207 es como un plan de trabajo para una empresa de construcción. Imagina que tienes un proyecto de software grande y complejo, con muchas personas trabajando en él. Necesitas saber qué procesos seguir, cómo organizar el trabajo y cuándo terminar cada fase. De manera similar, ISO/IEC 12207 define los procesos del ciclo de vida del software, como la planificación, el desarrollo, pruebas y mantenimiento. Estos procesos son como las etapas de una construcción: primero hay un diseño detallado, luego se comienza a construir, después se verifica que todo esté en orden y finalmente se entrega al cliente.\n\nPero ¿qué es lo que produce ISO/IEC 12207? Una descripción de arquitectura. Esto significa que el proceso define cómo debe ser la estructura del software, como las relaciones entre los diferentes componentes y cómo deben funcionar todos juntos. En otras palabras,ISO/IEC 42010: ¿Qué es lo que produce ISO/IEC 12207?\n\n¿Cómo se relaciona TOGAF con ISO/IEC 42010?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 8.3,
+          "adaptacion": {
+            "nivel": "bajo",
+            "profundidad": "extensa",
+            "estilo": "ejemplos",
+            "dificultad": false,
+            "segmento": "n=bajo|p=extensa|e=ejemplos",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.3",
+            "tema": "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "estandar": {
+          "respuesta": "ISO/IEC/IEEE 12207 es un estándar que define los procesos del ciclo de vida del software, estableciendo una estructura común para describir y gestionar las actividades involucradas en el desarrollo, implementación, pruebas y mantenimiento de sistemas de software. En particular, menciona la importancia de la \"diseñada\" arquitectura (es decir, según ISO/IEC 42010) como resultado del proceso de diseño de arquitectura definido por esta norma, que produce una descripción de arquitectura conforme a ISO/IEC/IEEE 42010. \n\n¿Qué relación existe entre el proceso de \"diseño de arquitectura\" y la creación de un documento formal de la arquitectura de sistemas de software complejos?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 7.0,
+          "adaptacion": {
+            "nivel": "medio",
+            "profundidad": "media",
+            "estilo": "conceptual",
+            "dificultad": false,
+            "segmento": "",
+            "referencias": []
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.3",
+            "tema": "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "avanzado": {
+          "respuesta": "ISO/IEC 12207 es un estándar que define los procesos del ciclo de vida del software. En otras palabras, describe cómo se desarrollan y gestionan los sistemas de software a lo largo de su vida útil.\n\nPor ejemplo, ISO/IEC 42010 establece una descripción de arquitectura basada en el proceso de diseño de arquitectura definido por ISO/IEC 12207. ¿Qué tipo de diseño de arquitectura basado en proceso utilizarías para tu próximo proyecto de desarrollo de software?",
+          "tipo": "respuesta",
+          "desde_cache": false,
+          "ms": 1496.2,
+          "adaptacion": {
+            "nivel": "alto",
+            "profundidad": "breve",
+            "estilo": "comparativo",
+            "dificultad": false,
+            "segmento": "n=alto|p=breve|e=comparativo",
+            "referencias": [
+              {
+                "tema_id": "2.5",
+                "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+                "unidad": 2
+              },
+              {
+                "tema_id": "2.2",
+                "tema": "ISO 9001: sistema de gestión de la calidad",
+                "unidad": 2
+              }
+            ]
+          },
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.3",
+            "tema": "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software",
+            "metodo": "palabras_clave"
+          }
+        },
+        "anonimo": {
+          "respuesta": "ISO/IEC/IEEE 12207 es un estándar que define los procesos del ciclo de vida del software, estableciendo una estructura común para describir y gestionar las actividades involucradas en el desarrollo, implementación, pruebas y mantenimiento de sistemas de software. En particular, menciona la importancia de la \"diseñada\" arquitectura (es decir, según ISO/IEC 42010) como resultado del proceso de diseño de arquitectura definido por esta norma, que produce una descripción de arquitectura conforme a ISO/IEC/IEEE 42010. \n\n¿Qué relación existe entre el proceso de \"diseño de arquitectura\" y la creación de un documento formal de la arquitectura de sistemas de software complejos?",
+          "tipo": "respuesta",
+          "desde_cache": true,
+          "ms": 8.7,
+          "adaptacion": null,
+          "ubicacion": {
+            "unidad": 2,
+            "tema_id": "2.3",
+            "tema": "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software",
+            "metodo": "palabras_clave"
+          }
+        }
+      },
+      "analisis": {
+        "tipos_ok": true,
+        "identificadores": {
+          "novato": [
+            "ISO/IEC 12207",
+            "ISO/IEC 42010"
+          ],
+          "estandar": [
+            "ISO/IEC 42010",
+            "ISO/IEC/IEEE 12207",
+            "ISO/IEC/IEEE 42010"
+          ],
+          "avanzado": [
+            "ISO/IEC 12207"
+          ]
+        },
+        "no_respaldados": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "anclas_que_faltan": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "afirmaciones_contradichas": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "palabras": {
+          "novato": 154,
+          "estandar": 98,
+          "avanzado": 66
+        },
+        "similitud_entre_pares": {
+          "novato~estandar": 0.07,
+          "novato~avanzado": 0.11,
+          "estandar~avanzado": 0.21
+        },
+        "segmentos": {
+          "novato": "n=bajo|p=extensa|e=ejemplos",
+          "estandar": "",
+          "avanzado": "n=alto|p=breve|e=comparativo"
+        },
+        "marca_analogia": {
+          "novato": true,
+          "estandar": false,
+          "avanzado": true
+        },
+        "marca_socratica_avanzado": false,
+        "cierra_en_pregunta_avanzado": true,
+        "referencias": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": [
+            "2.5",
+            "2.2"
+          ]
+        },
+        "cache": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false,
+          "anonimo": true
+        },
+        "cache_esperado": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false
+        },
+        "recibio_lo_suyo": {
+          "novato": true,
+          "estandar": true,
+          "avanzado": false
+        },
+        "recibio_lo_de_otro": {
+          "novato": [],
+          "estandar": [],
+          "avanzado": []
+        },
+        "anonimo_recibe_lo_del_estandar": true,
+        "verdictos": {
+          "contenido_normativo": true,
+          "forma_distinta": true,
+          "ajustes_distintos": true,
+          "cache_por_segmento": true
+        }
+      }
+    }
+  ],
+  "evolucion": {
+    "usuario": "eval-evol-752048c6",
+    "pasos": [
+      {
+        "turno": 0,
+        "mensaje": "(perfil inicial)",
+        "nivel_u2": 3.0,
+        "estilo": "conceptual",
+        "profundidad": "media",
+        "dificultades": [],
+        "tipo": null
+      },
+      {
+        "turno": 1,
+        "mensaje": "¿Qué es ISO 9001?",
+        "tipo": "respuesta",
+        "nivel_u2": 3.0,
+        "estilo": "conceptual",
+        "profundidad": "media",
+        "dificultades": [],
+        "respuesta": "ISO 9001 es un estándar internacional para Sistemas de Gestión de la Calidad (SGC) que proporciona principios, un marco de referencia y un proceso genérico para gestionar la calidad en cualquier tipo de organización. Aunque no fue creado específicamente para software, se utiliza ampliamente por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. La certificación ISO 9001 es otorgada por organismos de certificación acreditados mediante auditorías externas periódicas.\n\n¿Cómo relaciona la comprensión de esta norma con el desarrollo de software?"
+      },
+      {
+        "turno": 2,
+        "mensaje": "No entendí, explícame eso mejor",
+        "tipo": "respuesta",
+        "nivel_u2": 2.6,
+        "estilo": "conceptual",
+        "profundidad": "media",
+        "dificultades": [
+          "2.2"
+        ],
+        "respuesta": "La norma ISO 9001 es un estándar internacional para Sistemas de Gestión de la Calidad (SGC) que proporciona principios, un marco de referencia y un proceso genérico para gestionar la calidad en cualquier tipo de organización. Aunque no fue creado específicamente para software, se utiliza ampliamente por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional.\n\nEn una organización de tecnología, ISO 9001 sirve como un \"paraguas\" bajo el cual se integran prácticas específicas de calidad. Por ejemplo, si una empresa de desarrollo de software tiene un sistema de gestión de proyectos que cumple con los principios y procesos establecidos en la norma ISO 9001, puede considerar que su proceso de gestión de proyectos es compatible con las expectativas de clientes y proveedores.\n\nPara entender mejor cómo se relaciona esta norma con el desarrollo de software, imagina un equipo de desarrollo de software trabajando en un proyecto. El equipo utiliza herramientas como Git para controlar cambios, Trello o Asana para gestionar la tarea, y realiza pruebas unitarias y de integración para garantizar que el código se ejecuta correctamente.\n\nEn este contexto, ISO 9001 proporciona una estructura general para la gestión de calidad en el desarrollo de software. El equipo puede utilizar los principios establecidos en la norma para diseñar un proceso de calidad que incluya aspectos como la planificación y control del cambio, la verificación y validación de requisitos, y la realización de pruebas.\n\nPor ejemplo, si el equipo está trabajando en una aplicación web, puede utilizar los principios de ISO 9001 para garantizar que la aplicación cumple con las características establecidas en el requisito no funcional \"usabilidad\". Esto podría incluir la implementación de un sistema de autenticación biométrica o la optimización del tiempo máximo para completar una transferencia.\n\nEn resumen, ISO 9001 proporciona una estructura general para la gestión de calidad en el desarrollo de software, permitiendo a los equipos utilizar principios y procesos establecidos para garantizar que sus productos cumplen con las expectativas de clientes y proveedores."
+      },
+      {
+        "turno": 3,
+        "mensaje": "Sigo sin entender ISO 9001, explícamelo otra vez",
+        "tipo": "respuesta",
+        "nivel_u2": 2.2,
+        "estilo": "conceptual",
+        "profundidad": "media",
+        "dificultades": [
+          "2.2"
+        ],
+        "respuesta": "Imagina que trabajas en un equipo de desarrollo de software y necesitas gestionar varios proyectos simultáneamente. ¿Cómo asegurarte de que todos los proyectos se desarrollen de manera eficiente, sin perder el tiempo en tareas repetitivas o no esenciales? Esto es lo que pretende lograr una empresa con un sistema de gestión de la calidad (SGC) basado en ISO 9001.\n\nISO 9001 proporciona principios y un marco de referencia para gestionar la calidad en cualquier tipo de organización. Aunque no fue creado específicamente para software, se utiliza ampliamente por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. En una organización de tecnología, ISO 9…"
+      },
+      {
+        "turno": 4,
+        "mensaje": "Dame un ejemplo de ISO 9001",
+        "tipo": "respuesta",
+        "nivel_u2": 2.2,
+        "estilo": "conceptual",
+        "profundidad": "media",
+        "dificultades": [
+          "2.2"
+        ],
+        "respuesta": "Imagina que trabajas en un equipo de desarrollo de software y necesitas gestionar varios proyectos simultáneamente. ¿Cómo asegurarte de que todos los proyectos se desarrollen de manera eficiente, sin perder el tiempo en tareas repetitivas o no esenciales? Esto es lo que pretende lograr una empresa con un sistema de gestión de la calidad (SGC) basado en ISO 9001.\n\nEn este contexto, ISO 9001 proporciona principios y un marco de referencia para gestionar la calidad en cualquier tipo de organización. Aunque no fue creado específicamente para software, se utiliza ampliamente por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional.\n\nUna empresa de desarrollo de software puede implementar ISO 9001 para estandarizar procesos de gestión de proyectos, control de cambios y satisfacción del cliente. Por ejemplo, pueden establecer un proceso de revisión periódica de los proyectos para asegurarse de que cumplan con las expectativas del cliente y se ajusten a los estándares de calidad.\n\nEn este proyecto, el equipo puede utilizar la norma ISO 9001 para:\n\n*   Establecer procesos de gestión de proyectos claros y documentados\n*   Implementar un sistema de control de cambios para asegurarse de que los cambios en el código se realizan de manera segura y eficiente\n*   Realizar revisiones periódicas del proyecto para asegurarse de que cumple con las expectativas del cliente\n\nPor ejemplo, si estamos trabajando en una aplicación web, podemos establecer un proceso de revisión periódica donde cada miembro del equipo revisa el código y proporciona comentarios sobre su calidad. Esto nos ayuda a identificar problemas potenciales antes de que se conviertan en errores graves.\n\n¿Cómo gestionarías este proceso de revisión para asegurarte de que la aplicación cumpla con los estándares de calidad?"
+      },
+      {
+        "turno": 5,
+        "mensaje": "Dame otro ejemplo de ISO 9001 en un equipo pequeño",
+        "tipo": "sin_contexto",
+        "nivel_u2": 2.2,
+        "estilo": "conceptual",
+        "profundidad": "media",
+        "dificultades": [
+          "2.2"
+        ],
+        "respuesta": "Voy a explicarte qué es ISO 9001 y cómo se relaciona con un equipo pequeño de desarrollo de software. \n\nISO 9001 es una norma internacional que establece los requisitos generales para sistemas de gestión de la calidad (SGC). Aunque no fue creada específicamente para el desarrollo de software, es ampliamente utilizada por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. \n\nEn un equipo pequeño de desarrollo de software, ISO 9001 se puede aplicar para estandarizar procesos de gestión de proyectos, control de cambios y satisfacción del cliente. Por ejemplo, una empresa de desarrollo de software certificada en ISO 9001 podría utilizar el SGC para implementar prácticas específicas de calidad de software como pruebas unitarias o análisis estático.\n\nSi quieres aprender más sobre cómo aplicar ISO 9001 en un equipo pequeño de desarrollo de software, te sugiero consultar la unidad \"Normativas de desarrollo y calidad del software\" (Unidad 2) y buscar información adicional en el documento \"ISO/IEC 12207: procesos del ciclo de vida del software\", que trata sobre los detalles técnicos específicos de calidad de software. ¿Qué te parece si exploramos un poco más?"
+      },
+      {
+        "turno": 6,
+        "mensaje": "Muéstrame un ejemplo más de ISO 9001 en una startup",
+        "tipo": "respuesta",
+        "nivel_u2": 2.2,
+        "estilo": "ejemplos",
+        "profundidad": "media",
+        "dificultades": [
+          "2.2"
+        ],
+        "respuesta": "Una startup de desarrollo de software con varios proyectos simultáneos es como un equipo deportivo que necesita coordinar sus entrenamientos diarios para ganar la competencia. Imagina que cada proyecto es una cancha, y el equipo debe asegurarse de que todos los jugadores estén en su posición correcta y trabajen juntos sin perder tiempo en tareas repetitivas o no esenciales.\n\nEn este contexto, un sistema de gestión de calidad (SGC) basado en ISO 9001 puede ayudar a la startup a establecer procesos claros para gestionar los proyectos, controlar cambios y satisfacer al cliente. Esto se logra mediante la implementación de un marco de trabajo que incluya aspectos como la planificación, el diseño, la ejecución y la evaluación de los proyectos.\n\nPor ejemplo, una startup puede establecer un proceso para revisar regularmente las tareas pendientes con sus clientes, asegurándose de que se cumplan los plazos y las expectativas. También pueden implementar un sistema de control de cambios para garantizar que cualquier cambio en el proyecto sea documentado y aprobado por la autoridad competente.\n\nAdemás, una startup puede utilizar herramientas como tableros de project management o aplicaciones de gestión de proyectos para coordinar sus esfuerzos y asegurarse de que todos los proyectos estén alineados con los objetivos generales de la empresa. De esta manera, la startup puede aprovechar al máximo su capacidad de trabajo y alcanzar sus metas sin perder tiempo en tareas repetitivas o no esenciales.\n\n¿Cómo manejarías la coordinación de varios equipos trabajando en proyectos simultáneos?"
+      }
+    ],
+    "respuesta_final": {
+      "respuesta": "Imagina que estás trabajando en un equipo de desarrollo de software y necesitas asegurarte de que todos los proyectos se desarrollen de manera eficiente y con la calidad adecuada. La norma ISO 9001 es como una guía para ayudar a las empresas a establecer un sistema de gestión de calidad, similar al que usan en otros sectores como la fabricación o la construcción.\n\nEsta norma proporciona principios y un marco de referencia para gestionar la calidad organizacional, lo cual es fundamental en el desarrollo de software donde los requisitos cambian constantemente. En otras palabras, ISO 9001 ayuda a las empresas a entender cómo gestionar los riesgos y garantizar que sus productos o servicios cumplan con los estándares esperados. ¿Cómo implementaría ISO 9001 en un equipo de desarrollo de software para garantizar una calidad constante?",
+      "tipo": "respuesta",
+      "desde_cache": false,
+      "ms": 3158.6,
+      "adaptacion": {
+        "nivel": "bajo",
+        "profundidad": "media",
+        "estilo": "ejemplos",
+        "dificultad": true,
+        "segmento": "n=bajo|e=ejemplos|d=1",
+        "referencias": []
+      },
+      "ubicacion": {
+        "unidad": 2,
+        "tema_id": "2.2",
+        "tema": "ISO 9001: sistema de gestión de la calidad",
+        "metodo": "palabras_clave"
+      }
+    },
+    "perfil_final": {
+      "nivel_por_unidad": {
+        "1": 3.0,
+        "2": 2.2,
+        "3": 3.0,
+        "4": 3.0
+      },
+      "estilo": "ejemplos",
+      "profundidad": "media",
+      "dificultades": [
+        {
+          "tema_id": "2.2",
+          "tema": "ISO 9001: sistema de gestión de la calidad",
+          "unidad": 2
+        }
+      ],
+      "historial": "«ISO 9001: sistema de gestión de la calidad» (Unidad 2)",
+      "ritmo": {
+        "sesiones": 2,
+        "mensajes_totales": 7,
+        "mensajes_por_sesion": 3.5,
+        "duracion_media_s": 29.0
+      }
+    },
+    "progreso_unidad_2": [
+      {
+        "nivel": 3.0,
+        "motivo": "inicial",
+        "tema_id": null
+      },
+      {
+        "nivel": 2.6,
+        "motivo": "confusion",
+        "tema_id": "2.2"
+      },
+      {
+        "nivel": 2.2,
+        "motivo": "confusion",
+        "tema_id": "2.2"
+      }
+    ],
+    "verdictos": {
+      "el_nivel_solo_baja_y_sin_saltos": true,
+      "bajo_al_menos_un_paso": true,
+      "no_entendi_marca_dificultad": true,
+      "estilo_pasa_a_ejemplos": true,
+      "progreso_coincide_con_el_nivel": true,
+      "la_siguiente_respuesta_se_adapta": true,
+      "reiniciar_limpia": true
+    },
+    "saltos": [
+      0.0,
+      0.4,
+      0.4,
+      0.0,
+      0.0,
+      0.0
+    ]
+  }
+}

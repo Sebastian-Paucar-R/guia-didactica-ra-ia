@@ -1,5 +1,54 @@
 # BITÁCORA
 
+## 2026-09-20 — Perfilado adaptativo del estudiante (nivel por unidad, profundidad, estilo, historial) y caché segmentado
+
+### Qué se implementó
+- **Perfil por `user_id`** (`models/perfil.py`, `services/perfil_service.py`, SQLite `servidor/perfiles.db`, git-ignored): nivel estimado 1–5 por cada una de las 4 unidades
+  (inicio 3), temas consultados, temas con dificultad, profundidad (breve/media/extensa), estilo (conceptual/ejemplos/comparativo), ritmo (mensajes por sesión y duración media) e
+  historial de los últimos 5 temas. Tablas `perfiles`, `progreso` (cada cambio de nivel) y `sesiones`. `POST /chat` ya usaba `user_id` sin efecto: ahora lo pasa a `get_answer`.
+- **Actualización tras cada turno** (`services/adaptacion_service.py`), solo por conducta observable y gradual: «no entendí»/«explícame mejor»/«otra vez» bajan 0,4 el nivel de la
+  unidad y marcan dificultad (a la 2.ª vez si es solo pedir aclarar); responder bien una pregunta de reflexión (candidata por reglas + juez LLM conservador) sube 0,3; ≥3 pedidos de
+  ejemplos/comparar cambian el estilo y ≥3 de ampliar/resumir mueven la profundidad **un escalón**. Máximo un movimiento de nivel por turno. Un seguimiento sigue en el tema anterior
+  salvo que nombre otro por palabras clave; una redirección solo cuenta para el ritmo, salvo un seguimiento corto sin tema propio justo tras una explicación (el filtro lo redirigió por error).
+- **Inyección en el prompt**: hueco `{adaptacion}` tras `{modo}` (vacío = prompt idéntico al anterior). Modula profundidad (PUNTUAL/PROFUNDIZAR; TAREA no cambia), andamiaje (analogías y pregunta
+  sencilla para nivel bajo o tema con dificultad; directo y pregunta socrática exigente para nivel alto) y referencias a lo ya visto de la misma unidad. El ajuste se repite muy corto en el
+  recordatorio final y la pregunta de cierre se regenera con la exigencia del nivel (`tutor.ajustar_pregunta_final`). Las verificaciones de salida siguen iguales para todos.
+- **Caché segmentado por el ajuste realmente usado** (decisión documentada en `CLAUDE.md`, «Semantic cache»): columna `segmento` con migración del esquema, sin cruces entre niveles/profundidades,
+  perfil neutro comparte lo existente, `sin_contexto` se comparte, las respuestas que citan lo ya trabajado son personales y no pasan por el caché. Se descartó «cachear solo el núcleo factual y
+  generar la envoltura cada vez»: ahorra <2 % o exige una 2.ª llamada al LLM y expone el contenido normativo a distorsión. `/cache/estadisticas` suma `entradas_por_segmento` y `omitidos_por_perfil`.
+- **Endpoints**: `GET /api/v1/perfil/{user_id}`, `GET /api/v1/perfil/{user_id}/progreso` (evolución por unidad desde un punto inicial en 3,0), `POST /api/v1/perfil/{user_id}/reiniciar`. `/chat` devuelve `adaptacion`.
+- **Verificador**: `tutor_service._CONTEO` también controla cantidades escritas con letras («tres niveles»), tras verlo fallar en la evaluación real.
+- **Banco de adaptación**: `pruebas/casos_adaptacion.json` + `pruebas/evaluar_adaptacion.py` → `reportes/evaluacion_adaptacion.{json,md}`; lectura crítica a mano en `reportes/evaluacion_adaptacion_lectura.md`
+  y primera corrida en `evaluacion_adaptacion_corrida1.md`.
+
+### Archivos tocados
+Nuevos: `servidor/backend/app/{models/perfil.py, services/{perfil_service,adaptacion_service}.py, api/v1/endpoints/perfil.py}`, `servidor/backend/tests/{test_perfil,test_adaptacion}.py`,
+`servidor/pruebas/{casos_adaptacion.json,evaluar_adaptacion.py}`, `servidor/reportes/evaluacion_adaptacion*.{md,json}`. Modificados: `servidor/backend/app/{core/config.py, main.py, api/v1/endpoints/chat.py,
+services/{rag_service,tutor_service,cache_service}.py}`, `servidor/backend/tests/{conftest,test_cache,test_tutor}.py`, `servidor/.gitignore`, `CLAUDE.md`, `BITACORA.md`.
+
+### Resultados
+- **538 tests** (311 previos + 227 nuevos). Cada invariante nuevo se verificó rompiéndolo a propósito (22 mutaciones, todas detectadas): segmentación y compartición del caché, exclusión de lo personal,
+  atomicidad del perfil, gradualidad, consumo de señales, respaldo de las referencias, cierre regenerado y verificado, seguimientos, cantidades en letras. El servidor arrancó sin errores en cada ronda real.
+- **Evaluación real (llama3.2, 3 preguntas × 3 estudiantes, servidores limpios; final = 9 respuestas por perfil)**: el novato (extensa + ejemplos) responde ≈2× más largo (156 vs 80 palabras) y abre con
+  una analogía o situación en 9/9; el avanzado cierra con un «por qué/qué pasaría si» en 4/9 (0/6 antes del recordatorio final y la pregunta regenerada); el caché no cruzó segmentos en ninguna pregunta;
+  la evolución de un estudiante real bajó 3,0 → 2,6 → 2,2 sin saltos, marcó dificultad tras «No entendí», pasó a estilo «ejemplos» al tercer pedido y adaptó la siguiente respuesta.
+- **Lo que NO salió bien**: el contenido normativo no coincide de forma fiable entre perfiles. En la ronda oficial final el novato (extensa) tuvo 2 de 3 respuestas con contenido inventado o
+  trasladado entre normas (p. ej. «ISO 9001 aborda la seguridad de la información y el gobierno de riesgos»; 12207 con cosas de 42010 y texto incoherente), el estándar sin ajuste 1 de 3 y el avanzado
+  (corto) 0 de 3. Los verdictos automáticos dijeron ✅ en las tres preguntas: no detectan atributos trasladados ni relleno. Detalle y cifras en `reportes/evaluacion_adaptacion_lectura.md`.
+
+### Pendiente / limitaciones
+- Contenido con `llama3.2`: relleno y traslado de atributos entre normas (también sin perfil: a veces atribuye a ISO 9001 lo que el documento dice de ISO 31000, «no certificable»). Antes de exponerlo
+  a estudiantes: probar un modelo mayor con la misma batería, limitar o desactivar la profundidad extensa y añadir una comprobación de atribución por oración.
+- Defectos previos al perfil vistos: el reformulador deja seguimientos pelados sin reescribir y el filtro los redirige (3 de 25 en cinco ejecuciones); `terminos_sin_respaldo` busca los nombres del sílabo
+  como subcadena («Dame» dentro de «fundamentos») y un seguimiento salió como `sin_contexto`. No se tocaron.
+- **Ni la página de prueba ni Flutter envían `user_id`**: hasta que lo hagan, la app real no adapta nada. Los endpoints de perfil no tienen autenticación (el proyecto no la tiene).
+- El juez de «reflexión correcta» es débil con un 3B (conservador y de efecto pequeño); estilo/profundidad no vuelven solos a conceptual/media (hay `/reiniciar`); la *breve* apenas acorta.
+- `main` estaba 6 commits por delante de `origin/main` al empezar; el push los publica junto con este trabajo.
+
+### Siguiente paso sugerido
+Cablear `user_id` en Flutter (`chat_screen.dart`) y en la página de prueba, mostrar `GET /perfil/{id}` y `/progreso` en la pantalla de perfil, y repetir `pruebas/evaluar_adaptacion.py` con un modelo mayor
+antes de activar la profundidad extensa para estudiantes reales.
+
 ## 2026-09-20 — Sílabo en YAML, filtro contra el temario, auditoría de cobertura y evaluación del tutor
 
 ### Qué se implementó

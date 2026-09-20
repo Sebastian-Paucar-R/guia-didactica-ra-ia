@@ -269,7 +269,7 @@ creas conocerlo, y no propongas un número de norma "probable".
 entregues el ejercicio resuelto ni la respuesta final. Con cortesía, reconoce su urgencia y ayúdalo con una pista \
 distinta y más concreta que las anteriores.
 
-MODO DE ESTA RESPUESTA: {modo}
+MODO DE ESTA RESPUESTA: {modo}{adaptacion}
 
 Documentos disponibles en la base: {documentos}
 Unidades del sílabo:
@@ -316,30 +316,103 @@ RECORDATORIOS = {
 RECORDATORIO_CITAS = (" Nombra en tu respuesta, con tus palabras, el documento de la base del que sale lo que "
                       "explicas ({fuentes}); si mencionas una norma, usa su identificador completo.")
 
+# Profundidad preferida del estudiante (perfil): breve / extensa cambian cuánto se explica, nunca qué. Media es la de
+# siempre (INSTRUCCIONES_MODO y RECORDATORIOS). TAREA no cambia: sus pasos numerados son parte de la regla del tutor.
+_MODO_PUNTUAL_POR_PROFUNDIDAD = {
+    "breve": (
+        "El estudiante hace una pregunta puntual y prefiere respuestas breves. Responde solo lo que resuelve la duda, "
+        "en una o dos oraciones (máximo unas 45 palabras), sin listas ni encabezados y sin agregar información que no "
+        "pidió. Termina con UNA pregunta de reflexión breve (una sola oración) que lo haga aplicar o conectar lo que "
+        "acaba de leer."),
+    "extensa": (
+        "El estudiante hace una pregunta puntual y prefiere respuestas más desarrolladas. Responde lo que resuelve la "
+        "duda en un párrafo de 4 o 5 oraciones (máximo unas 120 palabras) explicando el porqué, sin listas ni "
+        "encabezados y sin salirte de lo que preguntó. Explica solo con lo que trae el CONTEXTO: si tiene poco detalle "
+        "sobre el punto, dilo en vez de rellenar con datos, niveles o categorías que no aparezcan en él. Termina con UNA "
+        "pregunta de reflexión breve (una sola oración) que lo haga aplicar o conectar lo que acaba de leer."),
+}
+_RECORDATORIO_PUNTUAL_POR_PROFUNDIDAD = {
+    "breve": "máximo 2 oraciones, sin listas, y termina con una pregunta de reflexión breve.",
+    "extensa": "un párrafo de 4 o 5 oraciones, sin listas, y termina con una pregunta de reflexión breve.",
+}
+# PROFUNDIZAR ya es extenso: breve lo acorta y extensa pide más desarrollo (texto a sustituir, texto nuevo)
+_AJUSTE_PROFUNDIZAR = {
+    "breve": ("varios párrafos, explicando el porqué", "dos párrafos cortos, explicando el porqué"),
+    "extensa": ("varios párrafos, explicando el porqué", "varios párrafos, explicando el porqué y las consecuencias "
+                                                         "prácticas de cada punto"),
+}
+_AJUSTE_RECORDATORIO_PROFUNDIZAR = {"breve": ("varios párrafos", "dos párrafos cortos")}
+
+
+def instrucciones_modo(intencion: str, profundidad: str = "media") -> str:
+    base = INSTRUCCIONES_MODO.get(intencion, INSTRUCCIONES_MODO[PUNTUAL])
+    if profundidad == "media" or intencion == TAREA:
+        return base
+    if intencion == PUNTUAL or intencion not in INSTRUCCIONES_MODO:
+        return _MODO_PUNTUAL_POR_PROFUNDIDAD[profundidad]
+    return base.replace(*_AJUSTE_PROFUNDIZAR[profundidad])
+
+
+def recordatorio(intencion: str, profundidad: str = "media") -> str:
+    base = RECORDATORIOS.get(intencion, RECORDATORIOS[PUNTUAL])
+    if profundidad == "media" or intencion == TAREA:
+        return base
+    if intencion == PUNTUAL or intencion not in RECORDATORIOS:
+        return _RECORDATORIO_PUNTUAL_POR_PROFUNDIDAD[profundidad]
+    return base.replace(*_AJUSTE_RECORDATORIO_PROFUNDIZAR.get(profundidad, ("", "")))
+
 
 PROMPT_REFLEXION = ChatPromptTemplate.from_template("""\
 Un tutor universitario le respondió esto a un estudiante:
 {respuesta}
 
 Escribe UNA sola pregunta de reflexión, breve (máximo 20 palabras), que haga al estudiante aplicar o conectar lo \
-que acaba de leer con un proyecto de desarrollo de software. Devuelve solo la pregunta.
+que acaba de leer con un proyecto de desarrollo de software. {pauta}Devuelve solo la pregunta.
 
 Pregunta:""")
 
+# Según el nivel del estudiante en la unidad (perfil): la pregunta de cierre es más sencilla o más exigente
+_PAUTA_REFLEXION = {
+    "sencilla": "La pregunta debe ser sencilla y comprobar lo esencial de la explicación. ",
+    "exigente": "La pregunta debe ser exigente: pedir un porqué, un «qué pasaría si…» o un contraste, no repetir lo "
+                "leído. ",
+}
 
-def terminar_con_pregunta(llm, respuesta: str) -> str:
+
+def terminar_con_pregunta(llm, respuesta: str, exigencia: str = "normal") -> str:
     """Si una respuesta puntual no cierra con una pregunta, el LLM genera una pregunta de reflexión breve
-    (redactada sobre esa respuesta, no una frase fija) y se agrega al final."""
+    (redactada sobre esa respuesta, no una frase fija) y se agrega al final. `exigencia` (sencilla | normal |
+    exigente) la ajusta al nivel del estudiante."""
     if respuesta.rstrip().endswith("?"):
         return respuesta
     try:
-        pregunta = (PROMPT_REFLEXION | llm | StrOutputParser()).invoke({"respuesta": respuesta}).strip()
+        pregunta = (PROMPT_REFLEXION | llm | StrOutputParser()).invoke(
+            {"respuesta": respuesta, "pauta": _PAUTA_REFLEXION.get(exigencia, "")}).strip()
     except Exception:
         return respuesta
     pregunta = pregunta.splitlines()[0].strip().strip('"«»') if pregunta else ""
     if not pregunta.endswith("?") or len(pregunta) > 200:
         return respuesta
     return f"{respuesta.rstrip()} {pregunta}"
+
+
+_ULTIMA_PREGUNTA = re.compile(r"(?:(?<=[.!?])[ \t]+|\n+)([^.!?\n]*\?)\s*$")
+
+
+def ajustar_pregunta_final(llm, respuesta: str, exigencia: str) -> str:
+    """Cambia la pregunta con la que cierra la respuesta por otra más sencilla o más exigente, según el nivel del
+    estudiante. El LLM casi siempre cierra con SU pregunta de reflexión y, con un modelo pequeño, una instrucción de
+    exigencia enterrada en un prompt largo no la cambia (0 de 9 cierres exigentes en la evaluación real); por eso se
+    genera aparte, con un prompt enfocado, sobre el cuerpo de la respuesta. Conserva los párrafos y, si no hay una
+    pregunta final que sustituir o algo falla, devuelve la respuesta tal cual."""
+    if exigencia not in _PAUTA_REFLEXION:
+        return respuesta
+    m = _ULTIMA_PREGUNTA.search(respuesta.rstrip())
+    if not m:
+        return respuesta
+    cuerpo = respuesta[:m.start(1)].rstrip()
+    nueva = terminar_con_pregunta(llm, cuerpo, exigencia)
+    return respuesta if nueva == cuerpo else nueva
 
 
 def recortar_a_oracion_completa(texto: str) -> str:
@@ -370,8 +443,11 @@ def formatear_contexto(fragmentos: list[tuple[str, str, str]]) -> str:
 _NORMA = re.compile(r"\b(?:ISO|IEC|IEEE)(?:\s*/\s*(?:ISO|IEC|IEEE))*\s*(\d{3,6})(?:\s*:\s*(\d{4}))?", re.IGNORECASE)
 _CLAUSULA = re.compile(
     r"\b(?:cl[aá]usulas?|cap[ií]tulos?|secci[oó]n(?:es)?|apartados?|numerales?)\s+(\d+(?:\.\d+)*)", re.IGNORECASE)
+# Cantidades en cifras o escritas con letras ("11 claves", "tres niveles"); desde "dos": "un proceso" es lo normal y no
+# se puede exigir que aparezca en el contexto.
 _CONTEO = re.compile(
-    r"\b(\d{1,3})\s+(?:cl[aá]usulas|controles|claves(?:\s+de\s+control)?|categor[ií]as|dominios|requisitos|"
+    r"\b(\d{1,3}|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte)\s+"
+    r"(?:cl[aá]usulas|controles|claves(?:\s+de\s+control)?|categor[ií]as|dominios|requisitos|"
     r"procesos|niveles|caracter[ií]sticas|principios|atributos|temas|fases|etapas)\b", re.IGNORECASE)
 
 
@@ -401,8 +477,9 @@ def normas_no_respaldadas(respuesta: str, respaldo: str) -> list[str]:
     for m in _CLAUSULA.finditer(respuesta):
         if m.group(1) not in numeros:
             invalidas.append(m.group(0).strip())
-    for m in _CONTEO.finditer(respuesta):       # "11 claves de control", "7 cláusulas": cantidades inventadas
-        if m.group(1) not in numeros:
+    for m in _CONTEO.finditer(respuesta):       # "11 claves de control", "tres niveles": cantidades inventadas
+        cantidad = m.group(1) if m.group(1).isdigit() else str(_NUMEROS_EN_LETRAS[m.group(1).lower()])
+        if cantidad not in numeros:
             invalidas.append(m.group(0).strip())
     return list(dict.fromkeys(invalidas))
 

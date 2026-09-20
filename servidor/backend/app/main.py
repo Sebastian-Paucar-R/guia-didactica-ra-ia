@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.api.v1.endpoints.cache import router as cache_router
 from app.api.v1.endpoints.chat import router as chat_router
 from app.api.v1.endpoints.documentos import router as documentos_router
+from app.api.v1.endpoints.perfil import router as perfil_router
 
 INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 
@@ -37,6 +38,7 @@ app.add_middleware(
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(documentos_router, prefix="/api/v1")
 app.include_router(cache_router, prefix="/api/v1")
+app.include_router(perfil_router, prefix="/api/v1")
 
 
 def _servir(carpeta: str, archivo: str) -> FileResponse:
