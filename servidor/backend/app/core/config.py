@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     DOCUMENTACION_DIR: Path = SERVIDOR_DIR / "documentacion"
     BASE_VECTORIAL_DIR: Path = SERVIDOR_DIR / "base_vectorial"
 
+    # Temario de la asignatura: única fuente para el filtro de pertinencia, las redirecciones y la auditoría
+    SILABO_PATH: Path = SERVIDOR_DIR / "configuracion" / "silabo.yaml"
+
     EXTENSIONES_PERMITIDAS: tuple[str, ...] = (".pdf", ".docx", ".pptx", ".txt", ".md")
     MAX_UPLOAD_MB: int = 50
 

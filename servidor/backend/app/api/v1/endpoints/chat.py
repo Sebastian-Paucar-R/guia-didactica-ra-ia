@@ -16,17 +16,27 @@ class ChatRequest(BaseModel):
     # Si se omite, se genera uno nuevo y se devuelve para que el cliente lo reutilice.
     conversation_id: str | None = Field(default=None, max_length=100)
 
+class UbicacionSilabo(BaseModel):
+    """Dónde cae la consulta en el sílabo (configuracion/silabo.yaml) y con qué método se decidió."""
+    unidad: int
+    tema_id: str
+    tema: str
+    metodo: str   # palabras_clave | llm | embedding
+
 class ChatResponse(BaseModel):
     response: str
     context: str = ""
     status: str = "success"
-    # saludo | funcionamiento | sin_documentos | respuesta | redireccion | error
+    # saludo | funcionamiento | sin_documentos | respuesta | sin_contexto | redireccion | error
     tipo: str = "respuesta"
     conversation_id: str = ""
     # True si la respuesta salió del caché semántico (sin llamar al LLM)
     desde_cache: bool = False
     # Tiempo que tardó el servidor en producir la respuesta, en milisegundos
     tiempo_respuesta_ms: float = 0.0
+    # Unidad y tema del sílabo a los que pertenece la consulta; None si se redirigió, es un saludo o una
+    # pregunta sobre el propio tutor
+    ubicacion: UbicacionSilabo | None = None
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_tutor(request: ChatRequest):
@@ -43,4 +53,5 @@ async def chat_with_tutor(request: ChatRequest):
         conversation_id=conversation_id,
         desde_cache=result.get("desde_cache", False),
         tiempo_respuesta_ms=result.get("tiempo_respuesta_ms", 0.0),
+        ubicacion=result.get("ubicacion"),
     )

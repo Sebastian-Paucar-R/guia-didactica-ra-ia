@@ -5,6 +5,7 @@ from langchain_core.embeddings import DeterministicFakeEmbedding
 from langchain_core.runnables import RunnableLambda
 
 import app.services.rag_service as rag_module
+from app.core import silabo
 from app.core.config import settings
 from app.services import pertinencia_service as pertinencia
 from app.services.rag_service import RAGService
@@ -100,7 +101,8 @@ def test_redireccion_propone_los_temas_elegidos_y_no_fuerza_conexiones():
     pertinencia.generar_redireccion(redaccion.runnable(), "¿Cómo protejo mi cuenta?", seleccion.runnable())
     prompt = redaccion.prompts[0]
     assert "«¿Cómo protejo mi cuenta?»" in prompt
-    assert "- Unidad 1: marcos predictivos" in prompt and "- Unidad 1: Scrum, Kanban y Lean" in prompt
+    planos = silabo.temas_planos()   # los temas propuestos salen del YAML: 1 y 2 son los dos primeros
+    assert f"- {planos[0]}" in prompt and f"- {planos[1]}" in prompt and "Scrum" in planos[1]
     assert "Ningún tema" not in prompt
 
     seleccion.respuesta = "NINGUNO"

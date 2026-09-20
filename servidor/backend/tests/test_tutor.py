@@ -229,7 +229,7 @@ def test_el_filtro_usa_la_pregunta_autonoma_del_seguimiento(tutor_rag, llms, mon
     llms["clasificador"].respuesta = ["DENTRO"]
     tutor_rag.get_answer("Explícame eso mejor", conversation_id="c1")
     prompt_pertinencia = next(p for p in llms["clasificador"].prompts if "clasificador de preguntas" in p)
-    assert "Pregunta: ¿Qué es la calidad del software?" in prompt_pertinencia
+    assert "Mensaje: ¿Qué es la calidad del software?" in prompt_pertinencia
 
 
 @pytest.mark.parametrize("mensaje,es", [
@@ -407,9 +407,13 @@ def test_ubicar_en_silabo_da_la_unidad_real(termino, unidad):
 def test_sin_contexto_lleva_la_ubicacion_real_en_el_silabo(tutor_rag, llms):
     tutor_rag.get_answer("¿Qué dice la ISO/IEC/IEEE 29119 sobre los niveles de prueba?")
     prompt = llms["llm"].prompts[-1]
-    assert "Unidad 4 (Gestión de pruebas, implementación y mantenimiento): verificación y validación" in prompt
+    from app.core.silabo import temas
+    por_id = {t.id: t for t in temas()}
+    pruebas = por_id["4.1"]
+    assert f"Unidad 4 ({pruebas.unidad_titulo}): {pruebas.nombre}" in prompt
     tutor_rag.get_answer("¿Qué es Blockchain aplicado a ISO 9001? Explícame CMMI o SIGLAXYZ")
-    assert "Unidad 2 (Normativas de desarrollo y calidad del software): madurez de procesos: CMMI" in llms["llm"].prompts[-1]
+    madurez = por_id["2.4"]
+    assert f"Unidad 2 ({madurez.unidad_titulo}): {madurez.nombre}" in llms["llm"].prompts[-1]
     tutor_rag.get_answer("¿Qué significa SIGLAXYZ?")
     assert "(el temario tampoco lo menciona)" in llms["llm"].prompts[-1]
 

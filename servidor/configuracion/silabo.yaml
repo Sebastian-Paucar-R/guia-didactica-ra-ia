@@ -1,0 +1,620 @@
+# Sílabo de la asignatura Normativas de Ingeniería de Software (0611ANIS7UP-AJ2025).
+#
+# Fuente de verdad del temario para el tutor: el filtro de pertinencia clasifica contra este archivo
+# (no contra listas escritas en los prompts), la auditoría de cobertura (pruebas/auditar_cobertura.py)
+# lo cruza con los documentos indexados y las redirecciones proponen temas tomados de aquí.
+#
+# Cada tema tiene:
+#   id            "<unidad>.<n>", único.
+#   nombre        cómo se le presenta al estudiante y al LLM.
+#   unidad        número de unidad (1-4).
+#   palabras_clave  términos que delatan el tema en una pregunta. Se comparan sin acentos ni mayúsculas y
+#                 por palabra completa; un `*` al final de una palabra admite cualquier terminación
+#                 ("certific*" -> certificación, certificar, certificado). Deben ser específicos: una palabra
+#                 corriente ("calidad", "prueba", "riesgo") atraería preguntas de otras materias.
+#                 Un prefijo `~` la marca como débil: solo decide si ninguna palabra fuerte de ningún tema
+#                 aparece (sirve para pistas genéricas como "norma ISO", que no bastan para elegir tema).
+#                 Los números de norma ("29119") pesan más que las frases: son lo más específico.
+#   archivos      documentos de documentacion/markdown/ que respaldan el tema; [] si no hay ninguno.
+#                 La auditoría comprueba que estén indexados y que de verdad traten el tema.
+
+asignatura:
+  codigo: 0611ANIS7UP-AJ2025
+  nombre: Normativas de Ingeniería de Software
+  nivel: 7
+  periodo: PAO 2026 B
+  institucion: Universidad Politécnica del Carchi, Carrera de Computación
+
+unidades:
+  - numero: 1
+    titulo: Aplicación de metodología de desarrollo de software
+  - numero: 2
+    titulo: Normativas de desarrollo y calidad del software
+  - numero: 3
+    titulo: Métricas de gestión de proyectos de software
+  - numero: 4
+    titulo: Gestión de pruebas, implementación y mantenimiento
+
+temas:
+  # ------------------------------------------------------------------ Unidad 1
+  - id: "1.1"
+    nombre: Marcos de desarrollo predictivos, iterativos, incrementales e híbridos
+    unidad: 1
+    palabras_clave:
+      - modelo en cascada
+      - modelo cascada
+      - metodolog* en cascada
+      - enfoque en cascada
+      - waterfall
+      - modelo en v
+      - modelo en espiral
+      - modelo de prototip*
+      - rup
+      - desarrollo iterativ*
+      - modelo iterativ*
+      - enfoque iterativ*
+      - proceso* iterativ*
+      - desarrollo incremental
+      - modelo incremental
+      - entregas incrementales
+      - enfoque* predictiv*
+      - metodolog* predictiv*
+      - marco* predictiv*
+      - metodolog* hibrid*
+      - enfoque* hibrid*
+      - marco* hibrid*
+      - desarrollo hibrido
+      - metodolog* de desarrollo
+      - metodolog* tradicional*
+      - metodolog* agil*
+      - elegir metodolog*
+      - seleccion de metodolog*
+      - marco de desarrollo
+    archivos: []
+
+  - id: "1.2"
+    nombre: Scrum (roles, eventos y artefactos)
+    unidad: 1
+    palabras_clave:
+      - scrum
+      - sprint planning
+      - sprint review
+      - sprint retrospective
+      - sprint backlog
+      - product owner
+      - scrum master
+      - backlog del producto
+      - daily scrum
+      - eventos de scrum
+      - retrospectiva
+      - definition of done
+      - definicion de hecho
+      - incremento del producto
+    archivos: []
+
+  - id: "1.3"
+    nombre: Kanban (tablero, flujo de trabajo y límites de WIP)
+    unidad: 1
+    palabras_clave:
+      - kanban
+      - tablero kanban
+      - wip
+      - limite* de trabajo en progreso
+      - trabajo en progreso
+      - trabajo en curso
+      - flujo continuo
+      - politicas explicitas
+    archivos: []
+
+  - id: "1.4"
+    nombre: Lean (eliminación de desperdicio y flujo de valor)
+    unidad: 1
+    palabras_clave:
+      - lean
+      - lean software
+      - lean startup
+      - principios lean
+      - siete desperdicios
+      - desperdicio* en el software
+      - desperdicio* de software
+      - desperdicio* del desarrollo
+      - flujo de valor
+      - mapa de flujo de valor
+      - value stream
+      - producto minimo viable
+    archivos: []
+
+  - id: "1.5"
+    nombre: Requisitos ágiles (backlog, historias de usuario, criterios de aceptación)
+    unidad: 1
+    palabras_clave:
+      - backlog
+      - historia* de usuario
+      - user stor*
+      - criterio* de aceptacion
+      - invest
+      - definicion de listo
+      - refinamiento del backlog
+      - refinamiento de historias
+      - requisitos agiles
+      - priorizacion moscow
+      - metodo moscow
+      - priorizacion de requisitos
+    archivos: []
+
+  - id: "1.6"
+    nombre: Ciclo de vida del desarrollo de software (SDLC)
+    unidad: 1
+    palabras_clave:
+      - sdlc
+      - ciclo de vida del desarrollo
+      - ciclo de vida del software
+      - ciclo de vida de un software
+      - ciclo de vida de software
+      - fases del ciclo de vida
+      - fases del desarrollo
+      - fases de desarrollo
+      - levantamiento de requisitos
+      - analisis de requisitos
+      - especificacion de requisitos
+    archivos:
+      - ISO-IEC_12207_Ciclo_Vida_Software.md
+
+  - id: "1.7"
+    nombre: DevOps y DevSecOps
+    unidad: 1
+    palabras_clave:
+      - devops
+      - devsecops
+      - infraestructura como codigo
+      - shift left
+      - pipeline de seguridad
+      - cultura devops
+      - desarrollo y operaciones
+    archivos: []
+
+  - id: "1.8"
+    nombre: Gobierno de procesos y mejora continua
+    unidad: 1
+    palabras_clave:
+      - gobernanza de ti
+      - gobernanza de procesos
+      - gobernanza de software
+      - gobierno de procesos
+      - gobierno de ti
+      - cobit
+      - mejora continua
+      - mejora de procesos
+      - mejora de proceso
+      - pdca
+      - ciclo de deming
+      - kaizen
+      - planificar hacer verificar actuar
+    archivos:
+      - ISO_9001_Gestion_Calidad.md
+
+  # ------------------------------------------------------------------ Unidad 2
+  - id: "2.1"
+    nombre: "Fundamentos de normas ISO/IEC/IEEE: estándares, certificación, acreditación, auditoría y cumplimiento"
+    unidad: 2
+    palabras_clave:
+      - "~iso iec ieee"
+      - "~iso iec"
+      - "~norma* iso"
+      - "~estandar* iso"
+      - estandar* internacional*
+      - normalizacion
+      - organismo* de normalizacion
+      - organismo* emisor*
+      - certificacion iso
+      - certificacion de calidad
+      - certificacion de sistemas
+      - certificacion de software
+      - certificar* en la norma
+      - certificar* en una norma
+      - certificar* mi empresa
+      - organismo* de certificacion
+      - auditoria de certificacion
+      - acreditacion de organismos
+      - organismo* de acreditacion
+      - auditor* interna*
+      - auditor* de calidad
+      - auditor* de sistemas
+      - auditor* de software
+      - auditor* de procesos
+      - auditor* de seguridad
+      - auditor* iso
+      - auditoria integral
+      - cumplimiento normativo
+      - no conformidad*
+      - conformidad con la norma
+      - conformidad con los requisitos
+      - marco normativo
+    archivos: []   # ningún documento está dedicado a los fundamentos: cada norma trata solo lo suyo (sección "Organismo emisor")
+
+  - id: "2.2"
+    nombre: "ISO 9001: sistema de gestión de la calidad"
+    unidad: 2
+    palabras_clave:
+      - "9001"
+      - sistema* de gestion de la calidad
+      - gestion de la calidad
+      - principios de gestion de la calidad
+      - aseguramiento de la calidad
+      - enfoque a procesos
+      - sgc
+    archivos:
+      - ISO_9001_Gestion_Calidad.md
+
+  - id: "2.3"
+    nombre: "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software"
+    unidad: 2
+    palabras_clave:
+      - "12207"
+      - procesos del ciclo de vida
+      - ciclo de vida de sistemas
+      - procesos tecnicos
+      - procesos organizacionales
+      - proceso* de adquisicion
+      - proceso* de suministro
+    archivos:
+      - ISO-IEC_12207_Ciclo_Vida_Software.md
+
+  - id: "2.4"
+    nombre: "Madurez y capacidad de procesos: CMMI e ISO/IEC 330xx (SPICE)"
+    unidad: 2
+    palabras_clave:
+      - cmmi
+      - "33000"
+      - "33020"
+      - "330xx"
+      - spice
+      - "15504"
+      - madurez de proceso*
+      - madurez del proceso
+      - madurez de software
+      - nivel* de madurez
+      - capacidad de proceso*
+      - niveles de capacidad
+      - evaluacion de procesos
+      - modelo de capacidad
+    archivos:
+      - ISO-IEC_33000_SPICE_Evaluacion_Procesos.md
+
+  - id: "2.5"
+    nombre: "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software"
+    unidad: 2
+    palabras_clave:
+      - "25010"
+      - "25000"
+      - square
+      - "25012"
+      - "25020"
+      - "25023"
+      - "25040"
+      - modelo de calidad del producto
+      - calidad en uso
+      - caracteristicas de calidad
+      - mantenibilidad
+      - adecuacion funcional
+      - eficiencia de desempeno
+      - fiabilidad
+    archivos:
+      - ISO-IEC_25010_Calidad_Producto_Software.md
+
+  - id: "2.6"
+    nombre: "Seguridad de la información, privacidad y desarrollo seguro: ISO/IEC 27001 y 27002"
+    unidad: 2
+    palabras_clave:
+      - "27001"
+      - "27002"
+      - "27701"
+      - sgsi
+      - seguridad de la informacion
+      - desarrollo seguro
+      - privacidad de datos
+      - privacidad de la informacion
+      - privacidad por diseno
+      - privacidad en el software
+      - proteccion de datos personales
+      - ley de proteccion de datos
+      - gdpr
+      - rgpd
+      - confidencialidad integridad
+      - controles de seguridad
+      - declaracion de aplicabilidad
+      - owasp
+    archivos:
+      - ISO-IEC_27001_Seguridad_Informacion.md
+      - ISO-IEC_27002_Controles_Seguridad.md
+
+  - id: "2.7"
+    nombre: "ISO/IEC 42001 y gobierno de la inteligencia artificial"
+    unidad: 2
+    palabras_clave:
+      - "42001"
+      - gobierno de la ia
+      - gobernanza de la ia
+      - gobierno de ia
+      - gobernanza de ia
+      - sistema de gestion de inteligencia artificial
+      - sistema de gestion de ia
+      - ia responsable
+      - inteligencia artificial responsable
+      - riesgos de la ia
+      - etica de la ia
+      - ai act
+      - "23894"
+      - sesgo* algoritmic*
+    archivos: []
+
+  - id: "2.8"
+    nombre: "Normas complementarias de la base documental: ISO/IEC 20000, ISO/IEC 29110, ISO 31000 e ISO/IEC/IEEE 42010"
+    unidad: 2
+    complementario: true   # no figura en el sílabo oficial, pero sus documentos están indexados y el tutor los usa
+    palabras_clave:
+      - "20000"
+      - "29110"
+      - "31000"
+      - "42010"
+      - gestion de servicios de ti
+      - itsm
+      - itil
+      - entidades muy pequenas
+      - vse
+      - gestion de riesgos de software
+      - gestion de riesgos de ti
+      - gestion de riesgos del proyecto
+      - arquitectura de software
+      - descripcion de arquitectura
+      - viewpoint*
+      - puntos de vista de la arquitectura
+    archivos:
+      - ISO-IEC_20000_Gestion_Servicios_TI.md
+      - ISO-IEC_29110_VSE_Software.md
+      - ISO_31000_Gestion_Riesgo.md
+      - ISO-IEC-IEEE_42010_Arquitectura_Software.md
+
+  # ------------------------------------------------------------------ Unidad 3
+  - id: "3.1"
+    nombre: "Fundamentos de medición: KPIs, líneas base y GQM"
+    unidad: 3
+    palabras_clave:
+      - kpi* de proyecto*
+      - kpi* de software
+      - kpi* de desarrollo
+      - kpi* de calidad
+      - kpi* de equipo*
+      - indicador* clave* de
+      - linea* base
+      - baseline*
+      - gqm
+      - goal question metric
+      - medicion de software
+      - metrica* de software
+      - metrica* de proyecto*
+      - metricas de gestion
+    archivos: []
+
+  - id: "3.2"
+    nombre: "Tamaño, esfuerzo y estimación: puntos de función, story points y velocidad"
+    unidad: 3
+    palabras_clave:
+      - punto* de funcion
+      - function point*
+      - story point*
+      - punto* de historia
+      - velocity
+      - velocidad del equipo
+      - velocidad del sprint
+      - estimacion* de esfuerzo
+      - estimacion* de proyecto*
+      - estimacion* de software
+      - estimacion* agil*
+      - estimar esfuerzo
+      - estimar el esfuerzo
+      - cocomo
+      - planning poker
+      - lineas de codigo
+      - kloc
+      - ifpug
+      - persona mes
+    archivos: []
+
+  - id: "3.3"
+    nombre: "Métricas de calidad del producto (ISO/IEC 25010)"
+    unidad: 3
+    palabras_clave:
+      - metrica* de calidad
+      - complejidad ciclomatica
+      - densidad de defectos
+      - tasa de defectos
+      - defecto* escapado*
+      - mtbf
+      - acoplamiento entre modulos
+      - bajo acoplamiento
+      - alta cohesion
+      - cohesion y acoplamiento
+      - acoplamiento y cohesion
+      - indice de mantenibilidad
+      - metricas de producto
+    archivos:
+      - ISO-IEC_25010_Calidad_Producto_Software.md
+
+  - id: "3.4"
+    nombre: "Métricas ágiles y de flujo: lead time, cycle time, WIP y diagrama de flujo acumulado"
+    unidad: 3
+    palabras_clave:
+      - lead time
+      - cycle time
+      - tiempo de ciclo
+      - throughput
+      - flujo acumulado
+      - cfd
+      - burndown
+      - burnup
+      - metrica* agil*
+      - metrica* de flujo
+      - predictibilidad
+    archivos: []
+
+  - id: "3.5"
+    nombre: "Métricas DORA de DevOps"
+    unidad: 3
+    palabras_clave:
+      - dora
+      - frecuencia de despliegue
+      - deployment frequency
+      - lead time for changes
+      - change failure rate
+      - tasa de fallo* de cambio*
+      - tiempo medio de recuperacion
+      - tiempo de recuperacion del servicio
+      - mttr
+      - accelerate
+    archivos: []
+
+  - id: "3.6"
+    nombre: "Métricas de experiencia de usuario, seguridad y sostenibilidad; tableros"
+    unidad: 3
+    palabras_clave:
+      - system usability scale
+      - escala de usabilidad
+      - nps
+      - satisfaccion del usuario
+      - metrica* de usabilidad
+      - metrica* de seguridad
+      - vulnerabilidad* abierta*
+      - tiempo de remediacion
+      - huella de carbono
+      - sostenibilidad del software
+      - software sostenible
+      - green software
+      - software verde
+      - consumo energetico del software
+      - tablero de metricas
+      - tablero de control
+      - dashboard*
+      - cuadro de mando
+      - okr*
+    archivos: []
+
+  # ------------------------------------------------------------------ Unidad 4
+  - id: "4.1"
+    nombre: "Verificación y validación, niveles de prueba e ISO/IEC/IEEE 29119"
+    unidad: 4
+    palabras_clave:
+      - "29119"
+      - verificacion y validacion
+      - v&v
+      - niveles de prueba
+      - prueba* unitaria*
+      - prueba* de integracion
+      - prueba* de sistema
+      - prueba* de aceptacion
+      - prueba* funcional*
+      - prueba* de regresion
+      - plan de pruebas
+      - caso* de prueba
+      - estrategia de pruebas
+      - pruebas de software
+      - prueba* de caja negra
+      - prueba* de caja blanca
+      - prueba* de caja gris
+      - piramide de pruebas
+      - testing
+    archivos: []
+
+  - id: "4.2"
+    nombre: "TDD, automatización de pruebas, análisis estático y quality gates"
+    unidad: 4
+    palabras_clave:
+      - tdd
+      - bdd
+      - desarrollo guiado por pruebas
+      - desarrollo dirigido por pruebas
+      - test driven
+      - rojo verde refactor
+      - red green refactor
+      - automatizacion de pruebas
+      - pruebas automatizadas
+      - analisis estatico
+      - sonarqube
+      - quality gate*
+      - puerta* de calidad
+      - cobertura de codigo
+      - selenium
+      - junit
+      - linter*
+    archivos: []
+
+  - id: "4.3"
+    nombre: "CI/CD, gestión de la configuración y contenedores"
+    unidad: 4
+    palabras_clave:
+      - ci cd
+      - cicd
+      - integracion continua
+      - entrega continua
+      - despliegue continuo
+      - continuous integration
+      - continuous delivery
+      - gestion de la configuracion
+      - control de versiones
+      - git
+      - github
+      - gitflow
+      - pull request*
+      - contenedores docker
+      - contenedores de software
+      - contenerizacion
+      - imagen* de contenedor
+      - orquestacion de contenedores
+      - docker
+      - kubernetes
+    archivos: []
+
+  - id: "4.4"
+    nombre: "Mantenimiento y evolución del software: ISO/IEC/IEEE 14764, refactorización y deuda técnica"
+    unidad: 4
+    palabras_clave:
+      - "14764"
+      - mantenimiento de software
+      - mantenimiento del software
+      - mantenimiento correctiv*
+      - mantenimiento adaptativ*
+      - mantenimiento perfectiv*
+      - mantenimiento preventiv*
+      - mantenimiento evolutiv*
+      - evolucion del software
+      - refactorizacion
+      - refactoring
+      - deuda tecnica
+      - codigo heredado
+      - software heredado
+      - legacy
+    archivos: []
+
+  - id: "4.5"
+    nombre: "Operación, observabilidad y gestión de incidentes"
+    unidad: 4
+    palabras_clave:
+      - observabilidad
+      - monitoreo continuo
+      - monitoreo de sistemas
+      - monitoreo de aplicaciones
+      - monitorizacion
+      - trazas distribuidas
+      - tracing
+      - sre
+      - slo
+      - sla
+      - gestion de incidentes
+      - incidente* de produccion
+      - incidente* de seguridad
+      - postmortem
+      - post mortem
+      - analisis de causa raiz
+      - runbook*
+      - grafana
+    archivos: []

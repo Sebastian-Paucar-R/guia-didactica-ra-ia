@@ -1,0 +1,1094 @@
+{
+  "generado": "2026-09-20T03:56:31",
+  "documentos_indexados": [
+    "ISO-IEC-IEEE_42010_Arquitectura_Software.md",
+    "ISO-IEC_12207_Ciclo_Vida_Software.md",
+    "ISO-IEC_20000_Gestion_Servicios_TI.md",
+    "ISO-IEC_25010_Calidad_Producto_Software.md",
+    "ISO-IEC_27001_Seguridad_Informacion.md",
+    "ISO-IEC_27002_Controles_Seguridad.md",
+    "ISO-IEC_29110_VSE_Software.md",
+    "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md",
+    "ISO_31000_Gestion_Riesgo.md",
+    "ISO_9001_Gestion_Calidad.md"
+  ],
+  "fragmentos": 111,
+  "temas": [
+    {
+      "id": "1.1",
+      "tema": "Marcos de desarrollo predictivos, iterativos, incrementales e híbridos",
+      "unidad": 1,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 29,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "metodolog* de desarrollo"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md",
+          "claves": [
+            "metodolog* agil*"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "1.2",
+      "tema": "Scrum (roles, eventos y artefactos)",
+      "unidad": 1,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 14,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "scrum"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "1.3",
+      "tema": "Kanban (tablero, flujo de trabajo y límites de WIP)",
+      "unidad": 1,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 8,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "1.4",
+      "tema": "Lean (eliminación de desperdicio y flujo de valor)",
+      "unidad": 1,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 12,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "1.5",
+      "tema": "Requisitos ágiles (backlog, historias de usuario, criterios de aceptación)",
+      "unidad": 1,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 12,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_25010_Calidad_Producto_Software.md",
+          "claves": [
+            "criterio* de aceptacion"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "1.6",
+      "tema": "Ciclo de vida del desarrollo de software (SDLC)",
+      "unidad": 1,
+      "complementario": false,
+      "archivos_asociados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ],
+      "asociados_indexados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 11,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "analisis de requisitos",
+            "ciclo de vida del software"
+          ],
+          "fragmentos": 5,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC_29110_VSE_Software.md",
+          "claves": [
+            "analisis de requisitos",
+            "ciclo de vida de software"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_27001_Seguridad_Informacion.md",
+          "claves": [
+            "ciclo de vida del desarrollo",
+            "sdlc"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_25010_Calidad_Producto_Software.md",
+          "claves": [
+            "especificacion de requisitos"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md",
+          "claves": [
+            "ciclo de vida del software"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "1.7",
+      "tema": "DevOps y DevSecOps",
+      "unidad": 1,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 7,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "devops"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC-IEEE_42010_Arquitectura_Software.md",
+          "claves": [
+            "devops"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "devops"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "1.8",
+      "tema": "Gobierno de procesos y mejora continua",
+      "unidad": 1,
+      "complementario": false,
+      "archivos_asociados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ],
+      "asociados_indexados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 13,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO_9001_Gestion_Calidad.md",
+          "claves": [
+            "mejora continua",
+            "pdca"
+          ],
+          "fragmentos": 6,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "gobierno de ti",
+            "mejora continua",
+            "pdca"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_27001_Seguridad_Informacion.md",
+          "claves": [
+            "mejora continua",
+            "pdca"
+          ],
+          "fragmentos": 5,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md",
+          "claves": [
+            "mejora de procesos"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "mejora continua"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO_31000_Gestion_Riesgo.md",
+          "claves": [
+            "mejora continua"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "2.1",
+      "tema": "Fundamentos de normas ISO/IEC/IEEE: estándares, certificación, acreditación, auditoría y cumplimiento",
+      "unidad": 2,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 28,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_27001_Seguridad_Informacion.md",
+          "claves": [
+            "auditor* interna*",
+            "cumplimiento normativo",
+            "no conformidad*",
+            "normalizacion",
+            "organismo* de certificacion",
+            "organismo* emisor*"
+          ],
+          "fragmentos": 9,
+          "asociado": false
+        },
+        {
+          "documento": "ISO_9001_Gestion_Calidad.md",
+          "claves": [
+            "auditor* interna*",
+            "no conformidad*",
+            "normalizacion",
+            "organismo* de certificacion",
+            "organismo* emisor*"
+          ],
+          "fragmentos": 8,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_27002_Controles_Seguridad.md",
+          "claves": [
+            "auditor* interna*",
+            "cumplimiento normativo",
+            "organismo* de certificacion",
+            "organismo* emisor*"
+          ],
+          "fragmentos": 6,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC-IEEE_42010_Arquitectura_Software.md",
+          "claves": [
+            "auditor* de seguridad",
+            "organismo* emisor*"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "auditor* interna*",
+            "organismo* emisor*"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_29110_VSE_Software.md",
+          "claves": [
+            "certificacion iso",
+            "organismo* emisor*"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_25010_Calidad_Producto_Software.md",
+          "claves": [
+            "organismo* emisor*"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "organismo* emisor*"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md",
+          "claves": [
+            "organismo* emisor*"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        },
+        {
+          "documento": "ISO_31000_Gestion_Riesgo.md",
+          "claves": [
+            "organismo* emisor*"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "2.2",
+      "tema": "ISO 9001: sistema de gestión de la calidad",
+      "unidad": 2,
+      "complementario": false,
+      "archivos_asociados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ],
+      "asociados_indexados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 7,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO_9001_Gestion_Calidad.md",
+          "claves": [
+            "9001",
+            "aseguramiento de la calidad",
+            "enfoque a procesos",
+            "gestion de la calidad",
+            "principios de gestion de la calidad",
+            "sgc",
+            "sistema* de gestion de la calidad"
+          ],
+          "fragmentos": 10,
+          "asociado": true
+        },
+        {
+          "documento": "ISO_31000_Gestion_Riesgo.md",
+          "claves": [
+            "9001"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "9001"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_27001_Seguridad_Informacion.md",
+          "claves": [
+            "9001"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "aseguramiento de la calidad"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "cubierto"
+    },
+    {
+      "id": "2.3",
+      "tema": "ISO/IEC/IEEE 12207: procesos del ciclo de vida del software",
+      "unidad": 2,
+      "complementario": false,
+      "archivos_asociados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ],
+      "asociados_indexados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 7,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "12207",
+            "ciclo de vida de sistemas",
+            "proceso* de adquisicion",
+            "procesos del ciclo de vida",
+            "procesos tecnicos"
+          ],
+          "fragmentos": 9,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC_25010_Calidad_Producto_Software.md",
+          "claves": [
+            "12207",
+            "procesos tecnicos"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_29110_VSE_Software.md",
+          "claves": [
+            "12207"
+          ],
+          "fragmentos": 7,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md",
+          "claves": [
+            "12207"
+          ],
+          "fragmentos": 5,
+          "asociado": false
+        },
+        {
+          "documento": "ISO_9001_Gestion_Calidad.md",
+          "claves": [
+            "12207"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC-IEEE_42010_Arquitectura_Software.md",
+          "claves": [
+            "12207"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "12207"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "cubierto"
+    },
+    {
+      "id": "2.4",
+      "tema": "Madurez y capacidad de procesos: CMMI e ISO/IEC 330xx (SPICE)",
+      "unidad": 2,
+      "complementario": false,
+      "archivos_asociados": [
+        "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md"
+      ],
+      "asociados_indexados": [
+        "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 14,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md",
+          "claves": [
+            "15504",
+            "33000",
+            "33020",
+            "capacidad de proceso*",
+            "cmmi",
+            "evaluacion de procesos",
+            "madurez de proceso*",
+            "nivel* de madurez",
+            "niveles de capacidad",
+            "spice"
+          ],
+          "fragmentos": 11,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC_29110_VSE_Software.md",
+          "claves": [
+            "33000",
+            "cmmi",
+            "evaluacion de procesos",
+            "nivel* de madurez",
+            "spice"
+          ],
+          "fragmentos": 6,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "33000",
+            "cmmi",
+            "nivel* de madurez",
+            "spice"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        }
+      ],
+      "estado": "cubierto"
+    },
+    {
+      "id": "2.5",
+      "tema": "Familia ISO/IEC 25000 (SQuaRE) e ISO/IEC 25010: calidad del producto de software",
+      "unidad": 2,
+      "complementario": false,
+      "archivos_asociados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ],
+      "asociados_indexados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 14,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_25010_Calidad_Producto_Software.md",
+          "claves": [
+            "25000",
+            "25010",
+            "25012",
+            "25040",
+            "adecuacion funcional",
+            "calidad en uso",
+            "caracteristicas de calidad",
+            "eficiencia de desempeno",
+            "fiabilidad",
+            "mantenibilidad",
+            "modelo de calidad del producto",
+            "square"
+          ],
+          "fragmentos": 10,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC-IEEE_42010_Arquitectura_Software.md",
+          "claves": [
+            "25010",
+            "mantenibilidad"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO_9001_Gestion_Calidad.md",
+          "claves": [
+            "25010"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "25010"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "25010"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "cubierto"
+    },
+    {
+      "id": "2.6",
+      "tema": "Seguridad de la información, privacidad y desarrollo seguro: ISO/IEC 27001 y 27002",
+      "unidad": 2,
+      "complementario": false,
+      "archivos_asociados": [
+        "ISO-IEC_27001_Seguridad_Informacion.md",
+        "ISO-IEC_27002_Controles_Seguridad.md"
+      ],
+      "asociados_indexados": [
+        "ISO-IEC_27001_Seguridad_Informacion.md",
+        "ISO-IEC_27002_Controles_Seguridad.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 18,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_27001_Seguridad_Informacion.md",
+          "claves": [
+            "27001",
+            "27002",
+            "confidencialidad integridad",
+            "controles de seguridad",
+            "declaracion de aplicabilidad",
+            "desarrollo seguro",
+            "seguridad de la informacion",
+            "sgsi"
+          ],
+          "fragmentos": 14,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC_27002_Controles_Seguridad.md",
+          "claves": [
+            "27001",
+            "27002",
+            "confidencialidad integridad",
+            "controles de seguridad",
+            "declaracion de aplicabilidad",
+            "desarrollo seguro",
+            "proteccion de datos personales",
+            "seguridad de la informacion"
+          ],
+          "fragmentos": 9,
+          "asociado": true
+        },
+        {
+          "documento": "ISO_31000_Gestion_Riesgo.md",
+          "claves": [
+            "27001",
+            "seguridad de la informacion"
+          ],
+          "fragmentos": 4,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "27001",
+            "seguridad de la informacion"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO_9001_Gestion_Calidad.md",
+          "claves": [
+            "27001"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_25010_Calidad_Producto_Software.md",
+          "claves": [
+            "confidencialidad integridad"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "cubierto"
+    },
+    {
+      "id": "2.7",
+      "tema": "ISO/IEC 42001 y gobierno de la inteligencia artificial",
+      "unidad": 2,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 14,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "2.8",
+      "tema": "Normas complementarias de la base documental: ISO/IEC 20000, ISO/IEC 29110, ISO 31000 e ISO/IEC/IEEE 42010",
+      "unidad": 2,
+      "complementario": true,
+      "archivos_asociados": [
+        "ISO-IEC_20000_Gestion_Servicios_TI.md",
+        "ISO-IEC_29110_VSE_Software.md",
+        "ISO_31000_Gestion_Riesgo.md",
+        "ISO-IEC-IEEE_42010_Arquitectura_Software.md"
+      ],
+      "asociados_indexados": [
+        "ISO-IEC_20000_Gestion_Servicios_TI.md",
+        "ISO-IEC_29110_VSE_Software.md",
+        "ISO_31000_Gestion_Riesgo.md",
+        "ISO-IEC-IEEE_42010_Arquitectura_Software.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 16,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC-IEEE_42010_Arquitectura_Software.md",
+          "claves": [
+            "42010",
+            "arquitectura de software",
+            "descripcion de arquitectura",
+            "viewpoint*"
+          ],
+          "fragmentos": 9,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "20000",
+            "gestion de servicios de ti",
+            "itil",
+            "itsm"
+          ],
+          "fragmentos": 7,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC_29110_VSE_Software.md",
+          "claves": [
+            "29110",
+            "vse"
+          ],
+          "fragmentos": 8,
+          "asociado": true
+        },
+        {
+          "documento": "ISO_31000_Gestion_Riesgo.md",
+          "claves": [
+            "20000",
+            "31000"
+          ],
+          "fragmentos": 5,
+          "asociado": true
+        },
+        {
+          "documento": "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md",
+          "claves": [
+            "29110",
+            "vse"
+          ],
+          "fragmentos": 5,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "29110",
+            "arquitectura de software"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        },
+        {
+          "documento": "ISO_9001_Gestion_Calidad.md",
+          "claves": [
+            "31000"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "cubierto"
+    },
+    {
+      "id": "3.1",
+      "tema": "Fundamentos de medición: KPIs, líneas base y GQM",
+      "unidad": 3,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 14,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "3.2",
+      "tema": "Tamaño, esfuerzo y estimación: puntos de función, story points y velocidad",
+      "unidad": 3,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 19,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_29110_VSE_Software.md",
+          "claves": [
+            "estimacion* de esfuerzo"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        },
+        {
+          "documento": "ISO_9001_Gestion_Calidad.md",
+          "claves": [
+            "estimacion* de esfuerzo"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "3.3",
+      "tema": "Métricas de calidad del producto (ISO/IEC 25010)",
+      "unidad": 3,
+      "complementario": false,
+      "archivos_asociados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ],
+      "asociados_indexados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ],
+      "asociados_sin_indexar": [],
+      "claves_totales": 13,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_25010_Calidad_Producto_Software.md",
+          "claves": [
+            "complejidad ciclomatica",
+            "metrica* de calidad"
+          ],
+          "fragmentos": 2,
+          "asociado": true
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "3.4",
+      "tema": "Métricas ágiles y de flujo: lead time, cycle time, WIP y diagrama de flujo acumulado",
+      "unidad": 3,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 11,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "3.5",
+      "tema": "Métricas DORA de DevOps",
+      "unidad": 3,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 10,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "3.6",
+      "tema": "Métricas de experiencia de usuario, seguridad y sostenibilidad; tableros",
+      "unidad": 3,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 19,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "4.1",
+      "tema": "Verificación y validación, niveles de prueba e ISO/IEC/IEEE 29119",
+      "unidad": 4,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 19,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_25010_Calidad_Producto_Software.md",
+          "claves": [
+            "29119",
+            "caso* de prueba",
+            "pruebas de software",
+            "verificacion y validacion"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "pruebas de software",
+            "verificacion y validacion"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "4.2",
+      "tema": "TDD, automatización de pruebas, análisis estático y quality gates",
+      "unidad": 4,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 17,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "4.3",
+      "tema": "CI/CD, gestión de la configuración y contenedores",
+      "unidad": 4,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 20,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_27002_Controles_Seguridad.md",
+          "claves": [
+            "control de versiones",
+            "integracion continua"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_12207_Ciclo_Vida_Software.md",
+          "claves": [
+            "control de versiones"
+          ],
+          "fragmentos": 2,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    },
+    {
+      "id": "4.4",
+      "tema": "Mantenimiento y evolución del software: ISO/IEC/IEEE 14764, refactorización y deuda técnica",
+      "unidad": 4,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 15,
+      "claves_minimas": 3,
+      "documentos": [],
+      "estado": "sin cobertura"
+    },
+    {
+      "id": "4.5",
+      "tema": "Operación, observabilidad y gestión de incidentes",
+      "unidad": 4,
+      "complementario": false,
+      "archivos_asociados": [],
+      "asociados_indexados": [],
+      "asociados_sin_indexar": [],
+      "claves_totales": 18,
+      "claves_minimas": 3,
+      "documentos": [
+        {
+          "documento": "ISO-IEC_20000_Gestion_Servicios_TI.md",
+          "claves": [
+            "gestion de incidentes",
+            "sla"
+          ],
+          "fragmentos": 7,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_27001_Seguridad_Informacion.md",
+          "claves": [
+            "gestion de incidentes",
+            "incidente* de seguridad"
+          ],
+          "fragmentos": 3,
+          "asociado": false
+        },
+        {
+          "documento": "ISO-IEC_27002_Controles_Seguridad.md",
+          "claves": [
+            "gestion de incidentes"
+          ],
+          "fragmentos": 1,
+          "asociado": false
+        }
+      ],
+      "estado": "parcial"
+    }
+  ]
+}

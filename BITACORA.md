@@ -1,5 +1,43 @@
 # BITÁCORA
 
+## 2026-09-20 — Sílabo en YAML, filtro contra el temario, auditoría de cobertura y evaluación del tutor
+
+### Qué se implementó
+- `servidor/configuracion/silabo.yaml`: 4 unidades y 27 temas (id, nombre, unidad, palabras clave, archivos .md). `core/silabo.py` lo carga y
+  valida (falla al arrancar si es inválido) y sustituye a la lista escrita en Python. El tema 2.8 (ISO 20000/29110/31000/42010) está marcado
+  `complementario`: no está en el sílabo oficial pero sus documentos están indexados.
+- Filtro de pertinencia reordenado (no reemplazado): saludo/sobre el tutor → palabras clave del YAML → cambio de rol sin tema → score → LLM que
+  elige un **número de tema** del YAML o FUERA. Cada consulta del temario registra unidad y tema (`[FILTRO] ... unidad= tema= metodo=` y campo
+  `ubicacion` en `/chat`).
+- Prompt endurecido contra 3 fallos: abandono de rol (`es_intento_abandonar_rol`, redirección sin la orden inyectada, regla en 3 prompts), normas inventadas
+  (regla + verificación ampliada a capítulo/sección/apartado) e insistencia (`tutor.insistencia`, `tarea_original`, modo firme, sin filtro ni caché).
+- `pruebas/auditar_cobertura.py` → `reportes/cobertura_silabo.md`: 6 cubiertos, 12 parciales, 9 sin cobertura (de 27).
+- `pruebas/banco_consultas.json` (40 dentro, 20 fuera) + `pruebas/evaluar_tutor.py` → `reportes/evaluacion_tutor.{json,md}`; `pruebas/casos_robustez.json`.
+- `reportes/historial_ajustes.md`: las 3 iteraciones, lo que falló y lo que no quedó resuelto.
+
+### Archivos tocados
+`servidor/configuracion/silabo.yaml`, `servidor/pruebas/*`, `servidor/reportes/*` (nuevos); `servidor/backend/app/{core/silabo.py, core/config.py,
+services/{pertinencia_service,tutor_service,rag_service,memoria_service}.py, api/v1/endpoints/chat.py}`, `backend/requirements.txt` (PyYAML),
+`backend/tests/{test_silabo.py (nuevo), test_pertinencia.py, test_tutor.py}`, `CLAUDE.md`, `BITACORA.md`.
+
+### Resultados (servidor real + Ollama llama3.2)
+- Precisión del filtro **100 %** (60/60; 0 FP, 0 FN) en la evaluación final; 96,7 % en la primera. Es una medida de desarrollo (se ajustó mirando el banco);
+  el conjunto antiguo de 46 preguntas, no usado para diseñar esto, dio 22/22 fuera y 24/24 dentro aceptadas.
+- Latencia media sin caché 13,4 s (respuestas cacheables) / 10,1 s (todas); con caché 0,02 s (~740×). 13 de 40 respuestas dentro del temario declararon
+  contexto insuficiente (9 de 14 sobre temas «sin cobertura»). Unidad acertada 97,5 %, tema exacto 87,5 %.
+- 311 tests (69 nuevos en `test_silabo.py`); el servidor arrancó sin errores y sirvió las 3 evaluaciones.
+
+### Pendiente / limitaciones
+- Normas inventadas solo parcialmente resuelto: se detectan números/años/cláusulas/capítulos inexistentes, no atribuciones falsas a normas reales
+  (llama3.2 dijo que ISO 42010 trata de IA). Insistencia: no se entrega la solución, pero el modelo repite casi la misma guía.
+- Las heurísticas de robustez del evaluador son débiles (9/9 con fallos reales): leer las conversaciones del JSON.
+- 9 temas del sílabo sin documento (Kanban, Lean, ISO 42001, KPIs/GQM, métricas de flujo, DORA, métricas UX/seguridad/sostenibilidad, TDD, mantenimiento/14764).
+- `iniciar_servidor.bat` sigue apuntando a un venv sin el stack RAG; los `.pyc` siguen versionados.
+
+### Siguiente paso sugerido
+Cargar los documentos de los 9 temas sin cobertura (con `POST /documentos/subir`), volver a ejecutar `auditar_cobertura.py` y `evaluar_tutor.py`, y valorar un LLM
+mayor para redactar `sin_contexto` y verificar atribuciones.
+
 ## 2026-09-20 — Caché semántico de respuestas (SQLite) con invalidación y estadísticas
 
 ### Qué se implementó

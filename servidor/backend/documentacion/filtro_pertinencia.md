@@ -1,5 +1,7 @@
 # Filtro de pertinencia temática del chat
 
+> **Actualización (2026-09-20):** el orden de decisión de abajo es el original. Ahora el filtro clasifica contra `servidor/configuracion/silabo.yaml` (palabras clave → cambio de rol → score → LLM que elige un número de tema o FUERA) y registra unidad y tema de cada consulta. Ver `CLAUDE.md` (sección «Relevance filter») y `servidor/reportes/historial_ajustes.md`.
+
 Antes de generar una respuesta, el tutor decide si la pregunta pertenece a **Normativas de Ingeniería de
 Software**. Código: `app/services/pertinencia_service.py`, orquestado en `RAGService.get_answer`
 (`app/services/rag_service.py`); temario en `app/core/silabo.py`. Tabla completa de resultados:
