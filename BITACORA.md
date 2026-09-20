@@ -1,5 +1,50 @@
 # BITÁCORA
 
+## 2026-09-20 — Caché semántico de respuestas (SQLite) con invalidación y estadísticas
+
+### Qué se implementó
+- `services/cache_service.py` (`CacheSemantico`) + integración en `RAGService.get_answer`: embedding de la pregunta (mismo
+  MiniLM del RAG), búsqueda por similitud coseno en `servidor/cache_respuestas.db` (SQLite, sin copia en memoria, sobrevive
+  a reinicios). Acierto → respuesta guardada sin llamar a ningún LLM, contador de usos +1 y fecha de último uso. Fallo →
+  flujo normal y se guarda (pregunta, embedding, respuesta, contexto, fuentes, usos, fechas, tiempo de generación).
+- `POST /chat` devuelve `desde_cache` y `tiempo_respuesta_ms`. Nuevo `GET /api/v1/cache/estadisticas`: total de entradas,
+  tasa de aciertos, 10 preguntas más repetidas, tiempo promedio ahorrado (estimado) y datos de invalidación.
+- **Invalidación total** al cambiar el índice: `indexar_archivo` (documento nuevo/modificado), `reconstruir`
+  (`/documentos/reindexar`) y `sincronizar` (documentos borrados/cambiados con el servidor apagado). Contador de versión
+  que descarta respuestas generadas mientras el índice cambiaba; si la invalidación falla, el caché queda apagado hasta lograrla.
+- Salvaguardas contra respuestas de otra pregunta (el modelo de embeddings no separa bien en español): mismo modo
+  (TAREA/PROFUNDIZAR/PUNTUAL por señales, sin LLM), mismos números/siglas y misma negación. Seguimientos dentro de una
+  conversación, saludos y preguntas sobre el tutor no pasan por el caché; solo se guardan `respuesta` y `sin_contexto`.
+- `scripts/calibrar_cache.py`, `backend/documentacion/cache_semantico.md` (método, calibración y resultados para la tesis).
+- 36 tests nuevos (242 en total): cada gancho de invalidación se verificó rompiéndolo a propósito.
+
+### Archivos tocados
+`servidor/backend/app/{services/cache_service.py (nuevo), services/rag_service.py, api/v1/endpoints/cache.py (nuevo),
+api/v1/endpoints/chat.py, core/config.py, main.py}`, `servidor/backend/scripts/calibrar_cache.py` (nuevo),
+`servidor/backend/tests/{test_cache.py (nuevo), conftest.py}`, `servidor/backend/requirements.txt` (numpy),
+`servidor/backend/documentacion/cache_semantico.md`, `servidor/.gitignore` (nuevo), `CLAUDE.md`, `BITACORA.md`.
+
+### Resultados (servidor real + Ollama llama3.2 + embeddings reales)
+Misma pregunta con tres redacciones: 5 521 ms (generada) → 7,4 ms y 7,4 ms (caché), respuestas idénticas. Persiste tras
+reiniciar; subir un documento y reindexar vacían el caché; reenviar el mismo archivo no. Detalle en `cache_semantico.md`.
+
+### Decisión a revisar: umbral 0.95 en vez de 0.92
+Con 0.92 el caché confundía "¿Qué es ISO 25010?" con "¿Cuáles son las características de ISO 25010?" (0.927) y devolvía
+la respuesta equivocada; con 0.95 no se pierde ningún acierto de la muestra. Solo acierta con cambios de forma (≥0.96);
+las reformulaciones de fondo ("dime en qué consiste…", 0.6-0.9) se regeneran. Se vuelve a 0.92 con
+`CACHE_UMBRAL_SIMILITUD=0.92`. Muestra pequeña (19 pares): recalibrar si crece el corpus de preguntas.
+
+### Pendiente
+- Sin política de expulsión (crece hasta la siguiente invalidación); cambiar de modelo de embeddings exige vaciar el caché a mano.
+- Siglas en minúsculas ("que es cmmi") no las distingue la huella; preguntas distintas con estructura casi idéntica podrían
+  superar el umbral. Un modelo de embeddings multilingüe permitiría acertar reformulaciones de fondo con seguridad.
+- Ni la página de prueba ni la app Flutter muestran `desde_cache` / `tiempo_respuesta_ms` (solo el JSON).
+- No hay `.gitignore` raíz: los `.pyc` siguen versionados (el nuevo `servidor/.gitignore` solo cubre el `.db` del caché).
+
+### Siguiente paso sugerido
+Acumular consultas reales/simuladas y usar `/cache/estadisticas` para el capítulo de resultados (tasa de aciertos, tiempo
+ahorrado); evaluar embeddings multilingües para subir la tasa de aciertos sin falsos positivos.
+
 ## 2026-09-20 — Prompt del tutor: intención, memoria conversacional y respuestas calibradas
 
 ### Qué se implementó

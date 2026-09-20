@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.core.config import settings
+from app.api.v1.endpoints.cache import router as cache_router
 from app.api.v1.endpoints.chat import router as chat_router
 from app.api.v1.endpoints.documentos import router as documentos_router
 
@@ -35,6 +36,7 @@ app.add_middleware(
 # El RAG (get_rag_service) se instancia una sola vez al importar chat.py
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(documentos_router, prefix="/api/v1")
+app.include_router(cache_router, prefix="/api/v1")
 
 
 def _servir(carpeta: str, archivo: str) -> FileResponse:

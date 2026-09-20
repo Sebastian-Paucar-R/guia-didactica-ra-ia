@@ -1,0 +1,3 @@
+# Caché semántico de respuestas: datos de ejecución (SQLite), no se versionan
+cache_respuestas.db
+cache_respuestas.db-*

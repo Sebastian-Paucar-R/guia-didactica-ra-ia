@@ -39,6 +39,17 @@ class Settings(BaseSettings):
     MEMORIA_TURNOS_PROMPT: int = 4         # turnos previos que se muestran al LLM
     MEMORIA_MAX_CONVERSACIONES: int = 200  # conversaciones simultáneas (LRU)
 
+    # Caché semántico de respuestas (SQLite persistente; ver services/cache_service.py). La respuesta guardada
+    # se reutiliza si la similitud coseno de la pregunta con la guardada llega a CACHE_UMBRAL_SIMILITUD.
+    # Calibrado con scripts/calibrar_cache.py (embeddings reales; detalle en documentacion/cache_semantico.md):
+    # con all-MiniLM-L6-v2 en español la misma pregunta con cambios de forma da >= 0.96, las reformulaciones
+    # de fondo 0.53-0.90 (no acertarán), y ya hay preguntas DISTINTAS en 0.927 ("qué es X" / "cuáles son las
+    # características de X"). Con 0.92 se serviría la respuesta equivocada; 0.95 no pierde ningún acierto de la
+    # muestra. Bajarlo da más aciertos a costa de más respuestas de otra pregunta.
+    CACHE_ACTIVO: bool = True
+    CACHE_UMBRAL_SIMILITUD: float = 0.95
+    CACHE_DB_PATH: Path = SERVIDOR_DIR / "cache_respuestas.db"
+
     class Config:
         env_file = ".env"
 

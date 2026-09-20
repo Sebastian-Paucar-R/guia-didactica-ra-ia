@@ -4,6 +4,7 @@ import shutil
 import sqlite3
 import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from app.core.config import settings
 from app.core.silabo import texto_silabo, ubicar_en_silabo
 from app.services import pertinencia_service as pertinencia
 from app.services import tutor_service as tutor
+from app.services.cache_service import TIPOS_CACHEABLES, Acierto, CacheSemantico
 from app.services.conversion_service import decodificar_texto
 from app.services.memoria_service import MemoriaConversacional
 
@@ -28,6 +30,16 @@ _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 ESTADO_INDEXADO = "indexado"
 ESTADO_OMITIDO = "omitido_sin_cambios"
 ESTADO_ERROR = "error"
+
+SALUDOS = ("hola", "buenas", "buenos días", "buenas tardes", "hey", "hi", "hoola")
+
+
+@dataclass
+class _ConsultaCache:
+    """Lo que se leyó del caché al llegar la pregunta y se necesita para anotar el resultado al terminar."""
+    embedding: list[float]
+    version: int                 # versión del caché al empezar: si cambia, la respuesta no se guarda
+    acierto: Acierto | None
 
 
 class RAGService:
@@ -40,7 +52,8 @@ class RAGService:
 
     def __init__(self, embeddings=None, persist_dir=None, docs_dir=None,
                  sincronizar_al_iniciar: bool = True, llm=None,
-                 llm_clasificador=None, llm_redireccion=None, llm_reformulador=None, memoria=None):
+                 llm_clasificador=None, llm_redireccion=None, llm_reformulador=None, memoria=None,
+                 cache: CacheSemantico | None = None):
         self._lock = threading.RLock()
         self.persist_dir = Path(persist_dir or settings.BASE_VECTORIAL_DIR)
         self.markdown_dir = (Path(docs_dir) / "markdown") if docs_dir else settings.MARKDOWN_DIR
@@ -65,6 +78,10 @@ class RAGService:
             model=settings.MODELO_LLM, temperature=0, num_predict=80, num_ctx=ctx)
         self.memoria = memoria or MemoriaConversacional(
             max_turnos=settings.MEMORIA_MAX_TURNOS, max_conversaciones=settings.MEMORIA_MAX_CONVERSACIONES)
+        # Caché semántico (SQLite): debe existir antes de sincronizar(), que lo invalida si el índice cambia
+        self.cache = cache or (CacheSemantico(settings.CACHE_DB_PATH, settings.CACHE_UMBRAL_SIMILITUD)
+                               if settings.CACHE_ACTIVO else None)
+        self._invalidacion_pendiente: str | None = None
         self.splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         self._abrir_vectorstore()
         if sincronizar_al_iniciar:
@@ -116,6 +133,7 @@ class RAGService:
                 # Contenido ya indexado: no se toca; solo se retiran versiones viejas del mismo nombre.
                 if ids_obsoletos:
                     self.vectorstore.delete(ids=ids_obsoletos)
+                    self._invalidar_cache(f"versión anterior de {nombre} retirada del índice")
                 return ESTADO_OMITIDO, 0
 
             fragmentos = self.splitter.split_text(decodificar_texto(datos))
@@ -138,11 +156,15 @@ class RAGService:
             ]
             # Primero se agregan los nuevos (upsert por id) y luego se eliminan los anteriores:
             # si algo falla al embeber, la versión previa sigue disponible.
-            self.vectorstore.add_documents(
-                documentos, ids=[f"{hash_actual}:{n}" for n in range(len(documentos))]
-            )
-            if ids_obsoletos:
-                self.vectorstore.delete(ids=ids_obsoletos)
+            try:
+                self.vectorstore.add_documents(
+                    documentos, ids=[f"{hash_actual}:{n}" for n in range(len(documentos))]
+                )
+                if ids_obsoletos:
+                    self.vectorstore.delete(ids=ids_obsoletos)
+            finally:
+                # Aunque falle a medias, el índice pudo cambiar: las respuestas guardadas ya no son fiables
+                self._invalidar_cache(f"documento indexado: {nombre}")
             return ESTADO_INDEXADO, len(documentos)
 
     def _archivos_markdown(self) -> list[Path]:
@@ -182,6 +204,7 @@ class RAGService:
             ]
             if huerfanos:
                 self.vectorstore.delete(ids=huerfanos)
+                self._invalidar_cache("documentos eliminados de markdown/")
                 print(f"[RAG] Podados {len(huerfanos)} chunks de documentos ya inexistentes.")
 
             resultados = self._indexar_todos()
@@ -212,14 +235,19 @@ class RAGService:
         """Mantenimiento: descarta la colección completa y reindexa todo markdown/."""
         with self._lock:
             inicio = time.perf_counter()
+            self._invalidar_cache("reindexado completo")
             try:
-                self.vectorstore.delete_collection()
-            except Exception as e:
-                print(f"[RAG] delete_collection: {e}")
-            self._abrir_vectorstore()
-            resultados = self._indexar_todos()
-            self._limpiar_segmentos_huerfanos()
-            total = self.contar_chunks()
+                try:
+                    self.vectorstore.delete_collection()
+                except Exception as e:
+                    print(f"[RAG] delete_collection: {e}")
+                self._abrir_vectorstore()
+                resultados = self._indexar_todos()
+                self._limpiar_segmentos_huerfanos()
+                total = self.contar_chunks()
+            finally:
+                # Otra vez al final (y aunque falle): descarta lo que se haya guardado mientras se reconstruía
+                self._invalidar_cache("reindexado completo")
             print(f"[RAG] Reconstruido: {len(resultados)} documentos, {total} chunks.")
             return {
                 "documentos": len(resultados),
@@ -227,6 +255,21 @@ class RAGService:
                 "resultados": resultados,
                 "duracion_s": round(time.perf_counter() - inicio, 2),
             }
+
+    def _invalidar_cache(self, motivo: str) -> None:
+        """Vacía el caché semántico porque el índice cambió. No lanza (no debe romper la carga de un documento),
+        pero si falla lo deja pendiente y el caché no se usa hasta lograr vaciarlo: nunca se sirve una
+        respuesta que pudo quedar desactualizada."""
+        if self.cache is None:
+            return
+        self._invalidacion_pendiente = motivo
+        try:
+            eliminadas = self.cache.invalidar(motivo)
+            self._invalidacion_pendiente = None
+            if eliminadas:
+                _log_cache(f"invalidado ({motivo}): {eliminadas} entradas eliminadas")
+        except Exception as e:
+            _log_cache(f"ERROR al invalidar ({type(e).__name__}: {e}); el caché queda desactivado hasta lograrlo")
 
     def resumen_indice(self) -> dict:
         """Chunks por documento indexado (para la interfaz)."""
@@ -252,18 +295,77 @@ class RAGService:
         return [(doc, 1.0 - distancia) for doc, distancia in resultados]
 
     def get_answer(self, question: str, conversation_id: str | None = None) -> dict:
-        """Devuelve {response, context, tipo}.
+        """Devuelve {response, context, tipo, fuentes, desde_cache, tiempo_respuesta_ms}.
 
         tipo: saludo | funcionamiento | sin_documentos | respuesta | sin_contexto | redireccion | error
         Con `conversation_id` el tutor recuerda los turnos anteriores de esa conversación
         (memoria en RAM): los seguimientos ("explícame eso mejor") se reescriben como pregunta
         autónoma antes de recuperar y filtrar.
+
+        Caché semántico: si una pregunta ya respondida es lo bastante parecida (ver cache_service), se devuelve
+        su respuesta sin recuperar ni llamar al LLM (`desde_cache: True`); si no, se genera como siempre y, si es
+        una respuesta basada en los documentos, se guarda. Un fallo del caché nunca impide responder.
         """
+        inicio = time.perf_counter()
         turnos = self.memoria.obtener(conversation_id, ultimos=settings.MEMORIA_TURNOS_PROMPT)
-        resultado = self._procesar(question, turnos)
+        consulta = self._consultar_cache(question, turnos)
+        if consulta and consulta.acierto:
+            a = consulta.acierto
+            resultado = {"response": a.respuesta, "context": a.contexto, "tipo": a.tipo,
+                         "fuentes": a.fuentes, "desde_cache": True}
+        else:
+            resultado = self._procesar(question, turnos)
+            resultado["desde_cache"] = False
+        # También los aciertos: el estudiante vio esa respuesta, así que un seguimiento debe poder apoyarse en ella
         if resultado["tipo"] in ("respuesta", "funcionamiento", "redireccion", "sin_contexto"):
             self.memoria.agregar(conversation_id, question, resultado["response"], resultado["tipo"])
+        resultado["tiempo_respuesta_ms"] = round((time.perf_counter() - inicio) * 1000, 1)
+        if consulta:
+            self._anotar_en_cache(question, consulta, resultado)
         return resultado
+
+    def _consultar_cache(self, question: str, turnos: list) -> _ConsultaCache | None:
+        """None si el caché no aplica a esta pregunta o falla; si no, su embedding, la versión del caché y el
+        acierto (si lo hay). Se salta el caché cuando la respuesta no depende solo de la pregunta y los documentos:
+        saludos, preguntas sobre el propio tutor y seguimientos dentro de una conversación ("explícame eso mejor")."""
+        if self.cache is None or not question.strip() or question.lower().strip() in SALUDOS:
+            return None
+        if turnos and tutor.es_seguimiento(question):
+            return None
+        if settings.FILTRO_PERTINENCIA_ACTIVO and pertinencia.es_pregunta_sobre_tutor(question):
+            return None
+        try:
+            if self._invalidacion_pendiente:
+                self._invalidar_cache(self._invalidacion_pendiente)
+                if self._invalidacion_pendiente:
+                    return None
+            version = self.cache.version()
+            embedding = self.embeddings.embed_query(question)
+            return _ConsultaCache(embedding, version, self.cache.buscar(question, embedding))
+        except Exception as e:
+            _log_cache(f"error al consultar ({type(e).__name__}: {e}); se responde sin caché")
+            return None
+
+    def _anotar_en_cache(self, question: str, consulta: _ConsultaCache, resultado: dict) -> None:
+        """Tras responder: en un acierto suma el uso; en un fallo lo cuenta y guarda la respuesta si es cacheable."""
+        ms = resultado["tiempo_respuesta_ms"]
+        try:
+            if consulta.acierto:
+                self.cache.registrar_acierto(consulta.acierto, ms)
+                _log_cache(f"acierto similitud={consulta.acierto.similitud:.3f} usos={consulta.acierto.usos + 1} "
+                           f"{ms}ms pregunta={question.strip()[:80]!r} guardada={consulta.acierto.pregunta[:80]!r}")
+                return
+            self.cache.registrar_fallo()
+            if resultado["tipo"] in TIPOS_CACHEABLES:
+                guardada = self.cache.guardar(
+                    question, consulta.embedding, resultado["response"], resultado.get("context", ""),
+                    resultado.get("fuentes", []), resultado["tipo"], ms, consulta.version)
+                _log_cache(f"fallo {ms}ms, " + ("respuesta guardada" if guardada else
+                           "NO guardada: el índice cambió mientras se generaba") + f" pregunta={question.strip()[:80]!r}")
+            else:
+                _log_cache(f"fallo {ms}ms, tipo={resultado['tipo']} no se guarda pregunta={question.strip()[:80]!r}")
+        except Exception as e:
+            _log_cache(f"error al anotar el resultado ({type(e).__name__}: {e})")
 
     def _procesar(self, question: str, turnos: list) -> dict:
         """Flujo completo. Filtro de pertinencia (orden): 1) excepciones (saludo, preguntas sobre el
@@ -272,7 +374,7 @@ class RAGService:
         question_lower = question.lower().strip()
 
         # Único mensaje predefinido
-        if question_lower in ["hola", "buenas", "buenos días", "buenas tardes", "hey", "hi", "hoola"]:
+        if question_lower in SALUDOS:
             return {
                 "response": (
                     "¡Hola! Soy tu Tutor IA especializado en normativas de Ingeniería de Software. "
@@ -352,6 +454,8 @@ class RAGService:
             nombre = doc.metadata.get("nombre_archivo", "")
             fragmentos.append((nombre, self._titulo_documento(nombre), doc.page_content))
         contexto = tutor.formatear_contexto(fragmentos)
+        # Documentos de donde salió lo recuperado (se guardan junto a la respuesta en el caché)
+        nombres_fuentes = list(dict.fromkeys(nombre for nombre, _, _ in fragmentos if nombre))
         documentos = [d["nombre_archivo"].removesuffix(".md") for d in self.resumen_indice()["documentos"]]
         historial = tutor.formatear_historial(turnos)
         # Documentos de los que salió el contexto, para que el tutor los nombre al citar
@@ -380,7 +484,8 @@ class RAGService:
                 ubicacion = list(dict.fromkeys(u for f in faltantes for u in ubicar_en_silabo(f)))
                 texto = tutor.generar_sin_contexto(
                     self.llm, question, faltantes, documentos, texto_silabo(), contexto, ubicacion)
-                return {"response": texto, "context": contexto[:1000], "tipo": "sin_contexto"}
+                return {"response": texto, "context": contexto[:1000], "tipo": "sin_contexto",
+                        "fuentes": nombres_fuentes}
             except Exception as e:
                 return {"response": f"Ocurrió un error al generar la respuesta: {str(e)}",
                         "context": "", "tipo": "error"}
@@ -438,6 +543,7 @@ class RAGService:
             "response": response,
             "context": contexto[:1000],
             "tipo": tipo,
+            "fuentes": nombres_fuentes,
         }
 
     def _responder_sobre_tutor(self, question: str) -> dict:
@@ -484,6 +590,10 @@ def _log_filtro(decision: str, pregunta: str, score: float | None = None, veredi
         partes.append(f"llm={veredicto}")
     linea = f"[FILTRO] {' '.join(partes)} pregunta={pregunta.strip()[:120]!r}"
     print(linea.encode("ascii", "backslashreplace").decode("ascii"))  # seguro con consolas cp1252
+
+
+def _log_cache(mensaje: str) -> None:
+    print(f"[CACHE] {mensaje}".encode("ascii", "backslashreplace").decode("ascii"))
 
 
 def _log_tutor(intencion: str, pregunta: str, autonoma: str) -> None:
