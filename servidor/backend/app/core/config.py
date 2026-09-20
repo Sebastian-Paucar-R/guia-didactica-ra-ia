@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     EXTENSIONES_PERMITIDAS: tuple[str, ...] = (".pdf", ".docx", ".pptx", ".txt", ".md")
     MAX_UPLOAD_MB: int = 50
 
+    # Filtro de pertinencia temática (ver documentacion en backend/documentacion/filtro_pertinencia.md)
+    FILTRO_PERTINENCIA_ACTIVO: bool = True
+    # Similitud coseno (0-1) del mejor fragmento recuperado; por debajo, la pregunta es "candidata a
+    # fuera de tema" y se confirma con el LLM. 0.62 sale de scripts/calibrar_umbral.py: con
+    # all-MiniLM-L6-v2 sobre texto en español las preguntas fuera del temario llegan hasta 0.61 y las
+    # del temario bajan hasta 0.42, así que el umbral es deliberadamente alto (el LLM arbitra la zona gris).
+    UMBRAL_PERTINENCIA: float = 0.62
+    MODELO_LLM: str = "llama3.2"
+
     class Config:
         env_file = ".env"
 

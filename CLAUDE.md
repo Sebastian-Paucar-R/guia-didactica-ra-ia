@@ -39,14 +39,26 @@ Layers (all under `servidor/backend/app/`): HTTP layer (`main.py`, `api/v1/endpo
 - `app/api/v1/endpoints/chat.py` — the `/chat` endpoint; delegates everything to `RAGService.get_answer` via `get_rag_service()`. `context` in the response is the retrieved text truncated to 1000 chars.
 - `app/api/v1/endpoints/documentos.py` — upload / reindex / list endpoints.
 - `app/services/rag_service.py` — all RAG logic (LangChain). `get_rag_service()` returns the one shared instance.
+- `app/services/pertinencia_service.py` — relevance filter (tutor-question detection, DENTRO/FUERA classifier, redirect generation); `app/core/silabo.py` — syllabus units.
 - `app/services/conversion_service.py` — PDF/Markdown conversion of uploaded files.
 
-`RAGService` request flow for `get_answer(question)`:
+`RAGService` request flow for `get_answer(question)` (returns `{response, context, tipo}`; `/chat` exposes `tipo`, one of `saludo | funcionamiento | sin_documentos | respuesta | redireccion | error`):
 
-1. **Greeting shortcut** — if the lowercased question is exactly one of a short list (`hola`, `buenas`, `buenos días`, `buenas tardes`, `hey`, `hi`, `hoola`) a fixed welcome message is returned with no retrieval or LLM call. This is the only canned reply.
-2. **Guard** — if the collection has zero chunks it returns a "no documents loaded" message.
-3. **Retrieve** — top-4 chunks from Chroma, joined with blank lines into `context`.
-4. **Generate** — `ChatPromptTemplate | ChatOllama(model="llama3.2", temperature=0.4) | StrOutputParser`. Any exception is caught and returned as the response text (HTTP status stays 200, `status: "success"`).
+1. **Greeting shortcut** — if the lowercased question is exactly one of a short list (`hola`, `buenas`, `buenos días`, `buenas tardes`, `hey`, `hi`, `hoola`) a fixed welcome message is returned with no retrieval or LLM call (`tipo: saludo`). This is the only canned reply.
+2. **Questions about the tutor itself** (`pertinencia_service.es_pregunta_sobre_tutor`, regexes on 2nd-person phrasing: "¿qué puedes hacer?", "¿qué documentos tienes?", "¿de qué temas me puedes ayudar?"...) skip the filter and are answered by the LLM from real data (indexed document names + syllabus units) — `tipo: funcionamiento`.
+3. **Guard** — if the collection has zero chunks it returns a "no documents loaded" message (`sin_documentos`).
+4. **Retrieve with score** — top-4 chunks with cosine similarity (`buscar_con_score`).
+5. **Relevance filter** — see "Relevance filter" below. Off-topic → `tipo: redireccion`, no answer content.
+6. **Generate** — `ChatPromptTemplate | ChatOllama(model="llama3.2", temperature=0.4) | StrOutputParser` (`respuesta`). Any exception is caught and returned as the response text (HTTP status stays 200, `status: "success"`, `tipo: error`).
+
+## Relevance filter (filtro de pertinencia temática)
+
+Implemented in `services/pertinencia_service.py` + `RAGService.get_answer`; syllabus units in `core/silabo.py` (`UNIDADES_SILABO`, source of truth for the classifier and redirects). Order of decision: (1) exceptions above; (2) best chunk similarity `>= settings.UMBRAL_PERTINENCIA` → answer normally, no extra LLM call; (3) otherwise the question is a *candidate* and a short deterministic LLM call (`llm_clasificador`, temperature 0) answers `DENTRO`/`FUERA` given the syllabus units. `DENTRO` (or an unparseable/failed classification — fail-open) → normal RAG answer, which says honestly when the documents lack the topic (many syllabus topics — Scrum, DORA, testing — have no document). `FUERA` → the answer LLM is **not** called: a second short call picks the syllabus topics that really relate to the question (`NINGUNO` → no forced connection), then `llm_redireccion` (temperature 0.9, prompt `PROMPT_REDIRECCION`) writes the redirect. Nothing is a fixed phrase. Every decision is logged as `[FILTRO] decision=... score=... llm=...` (use it to count redirects); `FILTRO_PERTINENCIA_ACTIVO=false` disables the whole filter.
+
+- **Threshold** `UMBRAL_PERTINENCIA = 0.62` (env-overridable, in `core/config.py`). With `all-MiniLM-L6-v2` on Spanish text the score ranges overlap heavily (off-topic up to 0.61, in-topic down to 0.42), so the threshold is deliberately high and the LLM arbitrates the grey zone; it skips the classifier only for clearly on-topic questions. Recalibrate with `python scripts/calibrar_umbral.py` if the embedding model or corpus changes.
+- **Cosine metric**: the Chroma collection is created with `hnsw:space = cosine` so `1 - distance` is a 0-1 similarity; `sincronizar()` rebuilds a store that uses another metric (once).
+- Evaluation: `scripts/evaluar_pertinencia.py` (end to end against a running server; questions in `scripts/preguntas_pertinencia.py`). Results and method: `backend/documentacion/filtro_pertinencia.md`.
+- `llama3.2` (3B) is weak at this: prompts were tuned iteratively (inclusive classifier rule "if in doubt, DENTRO"; separate topic-selection step; the rule "do not answer the question" goes first in the redirect prompt). If you change a prompt or model, rerun `evaluar_pertinencia.py`.
 
 Ingestion is incremental and only reads `documentacion/markdown/*.md` (see "Document upload" below): split with `RecursiveCharacterTextSplitter` (chunk 1000, overlap 200); embed with HuggingFace `sentence-transformers/all-MiniLM-L6-v2`; persist to Chroma (collection `langchain`). Chunks carry `nombre_archivo`, `hash`, `fecha_indexado`, `source`, `chunk`; the API still doesn't report which standard a chunk came from.
 
@@ -74,6 +86,7 @@ Consequences: for DOCX/PPTX/MD/TXT the PDF copy is a **re-rendering of the extra
 These are the rules currently encoded in the prompt in `rag_service.py` (Spanish, university-tutor persona for ISO 9001, 25010, 27001, 12207, etc.). Keep any prompt change consistent with them:
 
 - Answer only from the retrieved context; if the context is insufficient, say so honestly instead of filling in from the model's own knowledge. When retrieval returns nothing the prompt is fed the literal "No se encontró información relevante en los documentos."
+- Off-topic questions (outside the syllabus) are redirected, never answered — see "Relevance filter".
 - Natural, conversational Spanish; adapt depth to the student's question.
 - May explain, give examples, ask reflection questions, or go deeper as needed — but must **not** follow a fixed script or predefined sequence of steps (the code deliberately has no lesson flow or state machine; only the greeting shortcut is canned).
 - Not implemented (do not assume): quizzes, progress tracking, per-user memory across turns (each `/chat` call is stateless — the LLM sees only the current question and retrieved context), citation of sources.

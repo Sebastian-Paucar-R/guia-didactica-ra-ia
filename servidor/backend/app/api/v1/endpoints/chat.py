@@ -15,6 +15,8 @@ class ChatResponse(BaseModel):
     response: str
     context: str = ""
     status: str = "success"
+    # saludo | funcionamiento | sin_documentos | respuesta | redireccion | error
+    tipo: str = "respuesta"
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_tutor(request: ChatRequest):
@@ -25,5 +27,6 @@ async def chat_with_tutor(request: ChatRequest):
     return ChatResponse(
         response=result.get("response", "Sin respuesta"),
         context=result.get("context", ""),
-        status="success"
+        status="success",
+        tipo=result.get("tipo", "respuesta")
     )
