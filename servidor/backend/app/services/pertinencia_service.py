@@ -5,8 +5,10 @@ escrita en un prompt. Orden de decisión (lo orquesta RAGService.get_answer):
   1. Excepciones que siempre pasan: saludo inicial y preguntas sobre el propio tutor.
   2. Palabras clave del YAML: si la pregunta nombra un tema del sílabo, es DENTRO y ya se sabe unidad y tema.
   3. Pedidos de abandonar el rol del tutor sin ningún tema del sílabo: FUERA, sin gastar el clasificador.
-  4. Score de similitud de los fragmentos recuperados frente a settings.UMBRAL_PERTINENCIA.
-  5. Solo si ningún fragmento supera el umbral, el LLM elige un tema del YAML (o FUERA).
+  4. Seguimiento sin tema propio ("explícame eso mejor"): hereda el tema del turno anterior, sin arriesgarse
+     a que el score o el LLM lo juzguen fuera de tema por una reformulación imprecisa.
+  5. Score de similitud de los fragmentos recuperados frente a settings.UMBRAL_PERTINENCIA.
+  6. Solo si ningún fragmento supera el umbral, el LLM elige un tema del YAML (o FUERA).
 Si es FUERA no se responde el contenido: se genera una redirección con un prompt específico.
 """
 import re

@@ -4,7 +4,9 @@ Tres partes (casos en pruebas/casos_adaptacion.json):
 
 1. **Misma pregunta, tres estudiantes.** Un novato, un estudiante nuevo y un avanzado hacen cada pregunta. Las respuestas
    deben diferir en la forma (extensión, andamiaje, estilo, cierre) y coincidir en el contenido normativo: las mismas
-   ideas de la norma y ninguna norma, año o cláusula que no esté en los documentos indexados.
+   ideas de la norma, los mismos identificadores de norma citados en las tres (si uno nombra una que otro no, alguna se
+   la atribuyó a la norma equivocada o la inventó: cuenta como fallo, no se mira solo si el número existe en algún
+   documento) y ninguna norma, año o cláusula que no esté en los documentos indexados.
 2. **Caché segmentado.** Cada estudiante repite su pregunta en una conversación nueva: quien comparte ajuste recibe lo
    guardado (`desde_cache`), quien tiene otro no recibe la respuesta de otro, y lo personal (cita lo ya trabajado) no
    se guarda.
@@ -148,6 +150,12 @@ def analizar(p: dict, fila: dict, numeros_docs: set[str]) -> dict:
     malos = {e: no_respaldados(t, p["pregunta"], numeros_docs) for e, t in textos.items()}
     anclas_falta = {e: [a[0] for a in p["anclas"] if not tiene_ancla(t, a)] for e, t in textos.items()}
     contradichas = {e: [x for x in p.get("prohibido", []) if re.search(x, t, re.IGNORECASE)] for e, t in textos.items()}
+    # Las tres respuestas deben citar las MISMAS normas: si una nombra una que otra no (o al revés), una de las
+    # dos se la atribuyó a la norma equivocada o la inventó. No compara el texto completo (cambia con el estilo
+    # a propósito, ver "forma_distinta"), solo qué identificadores de norma aparecen en cada una.
+    comunes = set.intersection(*(set(v) for v in ids.values())) if ids else set()
+    normas_no_comunes = {e: sorted(set(v) - comunes) for e, v in ids.items()}
+    identificadores_coinciden = len({frozenset(v) for v in ids.values()}) == 1
     pares = {f"{a}~{b}": similitud(textos[a], textos[b]) for i, a in enumerate(ORDEN) for b in ORDEN[i + 1:]}
     segmentos = {e: (r[e]["adaptacion"] or {}).get("segmento") for e in ORDEN}
     # Caché: lo que cada uno recibió la segunda vez frente a lo que se generó la primera
@@ -160,7 +168,7 @@ def analizar(p: dict, fila: dict, numeros_docs: set[str]) -> dict:
     cierra_avanzado = textos["avanzado"].rstrip().endswith("?")
     return {
         "tipos_ok": tipos_ok, "identificadores": ids, "no_respaldados": malos, "anclas_que_faltan": anclas_falta,
-        "afirmaciones_contradichas": contradichas,
+        "afirmaciones_contradichas": contradichas, "normas_no_comunes_entre_perfiles": normas_no_comunes,
         "palabras": {e: palabras(t) for e, t in textos.items()}, "similitud_entre_pares": pares, "segmentos": segmentos,
         "marca_analogia": {e: bool(_ANALOGIA.search(t)) for e, t in textos.items()},
         "marca_socratica_avanzado": bool(_SOCRATICA.search(textos["avanzado"])), "cierra_en_pregunta_avanzado": cierra_avanzado,
@@ -170,7 +178,8 @@ def analizar(p: dict, fila: dict, numeros_docs: set[str]) -> dict:
         "anonimo_recibe_lo_del_estandar": s["anonimo"]["respuesta"] == r["estandar"]["respuesta"],
         "verdictos": {
             "contenido_normativo": tipos_ok and not any(malos.values()) and not any(anclas_falta.values())
-            and not any(contradichas.values()),
+            and not any(contradichas.values()) and identificadores_coinciden,
+            "identificadores_coinciden": identificadores_coinciden,
             "forma_distinta": tipos_ok and all(v < UMBRAL_SIMILITUD for v in pares.values())
             and palabras(textos["novato"]) > palabras(textos["avanzado"]),
             "ajustes_distintos": len({v for v in segmentos.values()}) == 3,
@@ -254,11 +263,12 @@ def escribir_md(informe: dict, ruta: Path) -> None:
         out.append(f"| **{e}** | {meta['estudiantes'][e]} |")
 
     out += ["", "## Resumen de verdictos automáticos", "",
-            "| Pregunta | Contenido normativo | Forma distinta | Ajustes distintos | Caché por segmento |", "|---|---|---|---|---|"]
+            "| Pregunta | Contenido normativo | Mismas normas en los tres | Forma distinta | Ajustes distintos | Caché por segmento |",
+            "|---|---|---|---|---|---|"]
     for f in informe["misma_pregunta"]:
         v = f["analisis"]["verdictos"]
-        out.append(f"| {f['id']} «{f['pregunta']}» | {_ok(v['contenido_normativo'])} | {_ok(v['forma_distinta'])} | "
-                   f"{_ok(v['ajustes_distintos'])} | {_ok(v['cache_por_segmento'])} |")
+        out.append(f"| {f['id']} «{f['pregunta']}» | {_ok(v['contenido_normativo'])} | {_ok(v['identificadores_coinciden'])} | "
+                   f"{_ok(v['forma_distinta'])} | {_ok(v['ajustes_distintos'])} | {_ok(v['cache_por_segmento'])} |")
 
     for f in informe["misma_pregunta"]:
         a, r = f["analisis"], f["primera"]
@@ -269,6 +279,8 @@ def escribir_md(informe: dict, ruta: Path) -> None:
                 "| Respuesta | " + " | ".join(_celda(r[e]["respuesta"]) for e in ORDEN) + " |",
                 "| Palabras | " + " | ".join(str(a["palabras"][e]) for e in ORDEN) + " |",
                 "| Normas que nombra | " + " | ".join(", ".join(a["identificadores"][e]) or "—" for e in ORDEN) + " |",
+                "| ...no comunes a los tres (posible atribución cruzada) | " + " | ".join(
+                    ", ".join(a["normas_no_comunes_entre_perfiles"][e]) or "—" for e in ORDEN) + " |",
                 "| Normas/años sin respaldo en los documentos | " + " | ".join(", ".join(a["no_respaldados"][e]) or "ninguno" for e in ORDEN) + " |",
                 "| Ideas ancla que faltan | " + " | ".join(", ".join(a["anclas_que_faltan"][e]) or "ninguna" for e in ORDEN) + " |",
                 "| Afirmaciones que los documentos contradicen | " + " | ".join(
@@ -302,6 +314,12 @@ def escribir_md(informe: dict, ruta: Path) -> None:
 
 
 def main() -> None:
+    try:
+        # El resumen final usa │/─ para las columnas lado a lado; en una consola Windows en cp1252 (sin
+        # PYTHONUTF8=1) esos caracteres rompían el script justo al terminar, después de escribir los reportes.
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except (AttributeError, OSError):
+        pass
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--url", default="http://127.0.0.1:8000")
     ap.add_argument("--casos", type=Path, default=RAIZ / "pruebas" / "casos_adaptacion.json")

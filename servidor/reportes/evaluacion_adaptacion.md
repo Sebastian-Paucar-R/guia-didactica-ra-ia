@@ -1,6 +1,6 @@
 # Evaluación de la adaptación al estudiante
 
-Generado por `pruebas/evaluar_adaptacion.py` el 2026-09-20 07:13 contra `http://127.0.0.1:8000` — **llama3.2-real-final**.
+Generado por `pruebas/evaluar_adaptacion.py` el 2026-09-29 10:50 contra `http://127.0.0.1:8020` — **ronda oficial 2026-09-29 (correcciones aplicadas)**.
 
 Tres estudiantes con perfiles distintos hacen la misma pregunta. Se espera que las respuestas **difieran en la forma** (extensión, andamiaje, estilo, cierre) y **coincidan en el contenido normativo**. Los verdictos son heurísticos (regex y similitud de texto): las respuestas están completas debajo para leerlas.
 
@@ -14,11 +14,11 @@ Tres estudiantes con perfiles distintos hacen la misma pregunta. Se espera que l
 
 ## Resumen de verdictos automáticos
 
-| Pregunta | Contenido normativo | Forma distinta | Ajustes distintos | Caché por segmento |
-|---|---|---|---|---|
-| A1 «¿Qué es ISO 9001?» | ✅ | ✅ | ✅ | ✅ |
-| A2 «¿Qué es ISO/IEC 25010?» | ✅ | ✅ | ✅ | ✅ |
-| A3 «¿Qué es ISO/IEC/IEEE 12207?» | ✅ | ✅ | ✅ | ✅ |
+| Pregunta | Contenido normativo | Mismas normas en los tres | Forma distinta | Ajustes distintos | Caché por segmento |
+|---|---|---|---|---|---|
+| A1 «¿Qué es ISO 9001?» | ❌ | ❌ | ✅ | ✅ | ✅ |
+| A2 «¿Qué es ISO/IEC 25010?» | ❌ | ❌ | ✅ | ✅ | ✅ |
+| A3 «¿Qué es ISO/IEC/IEEE 12207?» | ❌ | ❌ | ✅ | ✅ | ✅ |
 
 ## A1 · «¿Qué es ISO 9001?» (tema 2.2)
 
@@ -26,15 +26,16 @@ Tres estudiantes con perfiles distintos hacen la misma pregunta. Se espera que l
 |---|---|---|---|
 | Ajuste aplicado | `n=bajo|p=extensa|e=ejemplos` | `ninguno` | `n=alto|p=breve|e=comparativo` |
 | Cita lo ya trabajado | — | — | 2.5 |
-| Respuesta | Imagina que estás trabajando en un equipo de desarrollo de software y necesitas cumplir con las expectativas de tus clientes. Para asegurarte de que todo salga bien, decides implementar un sistema de gestión de calidad (SGC) que te ayude a controlar los procesos y garantizar la satisfacción del cliente. Este SGC es lo que se refiere a ISO 9001 — Sistemas de Gestión de la Calidad. La norma proporciona una guía para implementar un sistema de gestión de calidad en cualquier organización, incluyendo empresas de desarrollo de software.<br><br>ISO 9001 no solo se enfoca en la calidad del producto, sino que también aborda aspectos como la seguridad de la información y el gobierno de riesgos. Por ejemplo, si una empresa de TI tiene una certificación en ISO 27001, esto significa que ha implementado un sistema de gestión integrado de calidad y seguridad para proteger sus datos y mantener la confidencialidad.<br><br>La relación entre ISO 9001 y otras normas es importante: por ejemplo, ISO/IEC 12207 proporciona detalles técnicos específicos sobre los procesos del ciclo de vida del software que complementan el enfoque general de gestión de calidad introducido en ISO 9001. ¿Cómo implementaría ISO 9001 en tu proyecto actual para garantizar la calidad del producto final? | ISO 9001 es un estándar internacional para Sistemas de Gestión de la Calidad (SGC) que proporciona principios, un marco de referencia y un proceso genérico para gestionar la calidad en cualquier tipo de organización. Aunque no fue creado específicamente para software, se utiliza ampliamente por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. La certificación ISO 9001 es otorgada por organismos de certificación acreditados mediante auditorías externas periódicas.<br><br>¿Cómo relaciona la comprensión de esta norma con el desarrollo de software? | ISO 9001 es la norma internacional más adoptada en el mundo para Sistemas de Gestión de la Calidad (SGC). Aunque no fue creada específicamente para software, es ampliamente utilizada por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. ¿Qué pasaría si una empresa de software aplicara ISO 9001 a su proyecto sin ajustar adecuadamente sus procesos? |
-| Palabras | 205 | 87 | 63 |
-| Normas que nombra | ISO 27001, ISO 9001, ISO/IEC 12207 | ISO 9001 | ISO 9001 |
+| Respuesta | Imagina que tienes un proyecto de software que desarrollarás con un equipo de 5 personas y quieres asegurarte de que todo salga bien. Para lograrlo, decides establecer ciertos estándares para el desarrollo, como la calidad del código, la gestión de cambios y la satisfacción del cliente. Estos estándares se basan en las directrices proporcionadas por ISO 9001:2015 — Sistemas de Gestión de la Calidad. En este sentido, ISO 9001 se convierte en una especie de "paraguas" bajo el cual se integran prácticas específicas de calidad de software. La certificación ISO 9001 es otorgada por organismos de certificación acreditados y requiere auditorías externas periódicas. ¿Cómo integraría los estándares ISO 9001 en tu próximo proyecto de desarrollo de software? | ISO 9001 es la norma internacional más adoptada en el mundo para Sistemas de Gestión de la Calidad (SGC). Aunque no fue creada específicamente para software, es ampliamente utilizada por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. La certificación ISO 9001 es otorgada por organismos de certificación acreditados, mediante auditorías externas periódicas.<br><br>¿Cómo se relaciona la gestión de riesgos con la gestión de calidad en el contexto del desarrollo de software? | ISO 9001 es la norma internacional más adoptada en el mundo para Sistemas de Gestión de la Calidad (SGC). Aunque no fue creada específicamente para software, es ampliamente utilizada por empresas de tecnología y desarrollo de software como marco general de gestión de calidad organizacional. ¿Qué pasaría si una empresa de software implementara ISO 9001 sin considerar las necesidades específicas de su proyecto? |
+| Palabras | 117 | 79 | 63 |
+| Normas que nombra | ISO 9001, ISO 9001:2015 | ISO 9001 | ISO 9001 |
+| ...no comunes a los tres (posible atribución cruzada) | ISO 9001:2015 | — | — |
 | Normas/años sin respaldo en los documentos | ninguno | ninguno | ninguno |
 | Ideas ancla que faltan | ninguna | ninguna | ninguna |
 | Afirmaciones que los documentos contradicen | ninguna | ninguna | ninguna |
 | Marca de analogía/situación | ✅ | ❌ | ✅ |
 
-Similitud de texto entre pares (1 = idéntico; umbral de «distintas» < 0.8): novato~estandar = 0.06, novato~avanzado = 0.06, estandar~avanzado = 0.45. El avanzado cierra en pregunta: ✅; con marca socrática: ✅.
+Similitud de texto entre pares (1 = idéntico; umbral de «distintas» < 0.8): novato~estandar = 0.14, novato~avanzado = 0.13, estandar~avanzado = 0.65. El avanzado cierra en pregunta: ✅; con marca socrática: ✅.
 
 **Segunda vez, conversación nueva (caché):** novato: desde caché, estandar: desde caché, avanzado: generada, anonimo: desde caché. Recibió lo suyo: {novato: ✅, estandar: ✅, avanzado: ❌}; recibió la respuesta de otro estudiante: ninguno; el anónimo recibe lo del estándar: ✅.
 
@@ -44,15 +45,16 @@ Similitud de texto entre pares (1 = idéntico; umbral de «distintas» < 0.8): n
 |---|---|---|---|
 | Ajuste aplicado | `n=bajo|p=extensa|e=ejemplos` | `ninguno` | `n=alto|p=breve|e=comparativo` |
 | Cita lo ya trabajado | — | — | 2.2 |
-| Respuesta | La calidad del producto de software es un concepto complejo que abarca varios aspectos como la funcionalidad, la usabilidad y la fiabilidad del software. En este sentido, ISO/IEC 25010 define una serie de criterios para evaluar la calidad del producto de software, como la precisión, la exactitud, el rendimiento y la capacidad de cumplir con requisitos.<br><br>Imagina que estás trabajando en un proyecto de desarrollo de software y necesitas asegurarte de que tu aplicación cumpla con ciertos estándares de calidad. La norma ISO/IEC 25010 te proporciona una guía para evaluar cómo se comporta tu producto frente a estos criterios, lo cual es fundamental para garantizar la satisfacción del cliente. ¿Cómo evaluarás la precisión en tu aplicación para garantizar su funcionalidad correcta? | ISO/IEC 25010 es un estándar de calidad del producto de software que describe las características y requisitos para la calidad del producto, incluyendo aspectos como la precisión, la completitud, el rendimiento y la usabilidad. Aunque se menciona en ISO 9001 como complemento, no es una norma independiente. Se recomienda consultar el texto oficial de ISO/IEC 29110 para obtener más información sobre cómo se relaciona con este estándar.<br><br>¿Cómo crees que las empresas pueden aplicar la calidad del producto descrita en ISO/IEC 25010 en su desarrollo de software? | ISO/IEC 25010 es un estándar que define las características y requisitos para la calidad del producto de software, estableciendo criterios para evaluar y mejorar la calidad del software. A diferencia de ISO 9001, que se centra en la gestión de calidad organizacional, ISO/IEC 25010 se enfoca específicamente en los aspectos técnicos y funcionales de la calidad del producto de software. ¿Qué características técnicas y funcionales de una aplicación de software se evaluarían según ISO/IEC 25010? |
-| Palabras | 121 | 87 | 75 |
-| Normas que nombra | ISO/IEC 25010 | ISO 9001, ISO/IEC 25010, ISO/IEC 29110 | ISO 9001, ISO/IEC 25010 |
+| Respuesta | La calidad del producto de software es como un edificio en construcción: cada pieza debe estar bien hecha y encajar con las demás para crear una estructura sólida. ¿Cómo garantizarás que cada componente del sistema funcione correctamente antes de integrarlos en el edificio final? | Por lo tanto, no puedo ofrecer una explicación detallada sobre este estándar dentro del contexto dado. ¿Cuál es tu comprensión general de cómo las normas como ISO 9001 y su relación con la calidad de software? | Se trata de una norma específica en el contexto de gestión de calidad, complementando a ISO 9001. ¿Qué normas específicas se aplicarían en una empresa que desarrolla software y busca mejorar su calidad? |
+| Palabras | 44 | 36 | 33 |
+| Normas que nombra | — | ISO 9001 | ISO 9001 |
+| ...no comunes a los tres (posible atribución cruzada) | — | ISO 9001 | ISO 9001 |
 | Normas/años sin respaldo en los documentos | ninguno | ninguno | ninguno |
-| Ideas ancla que faltan | ninguna | ninguna | ninguna |
+| Ideas ancla que faltan | 25010 | 25010 | 25010 |
 | Afirmaciones que los documentos contradicen | ninguna | ninguna | ninguna |
 | Marca de analogía/situación | ✅ | ❌ | ❌ |
 
-Similitud de texto entre pares (1 = idéntico; umbral de «distintas» < 0.8): novato~estandar = 0.07, novato~avanzado = 0.11, estandar~avanzado = 0.22. El avanzado cierra en pregunta: ✅; con marca socrática: ✅.
+Similitud de texto entre pares (1 = idéntico; umbral de «distintas» < 0.8): novato~estandar = 0.06, novato~avanzado = 0.04, estandar~avanzado = 0.07. El avanzado cierra en pregunta: ✅; con marca socrática: ❌.
 
 **Segunda vez, conversación nueva (caché):** novato: desde caché, estandar: desde caché, avanzado: generada, anonimo: desde caché. Recibió lo suyo: {novato: ✅, estandar: ✅, avanzado: ❌}; recibió la respuesta de otro estudiante: ninguno; el anónimo recibe lo del estándar: ✅.
 
@@ -62,15 +64,16 @@ Similitud de texto entre pares (1 = idéntico; umbral de «distintas» < 0.8): n
 |---|---|---|---|
 | Ajuste aplicado | `n=bajo|p=extensa|e=ejemplos` | `ninguno` | `n=alto|p=breve|e=comparativo` |
 | Cita lo ya trabajado | — | — | 2.5, 2.2 |
-| Respuesta | ISO/IEC 12207 es como un plan de trabajo para una empresa de construcción. Imagina que tienes un proyecto de software grande y complejo, con muchas personas trabajando en él. Necesitas saber qué procesos seguir, cómo organizar el trabajo y cuándo terminar cada fase. De manera similar, ISO/IEC 12207 define los procesos del ciclo de vida del software, como la planificación, el desarrollo, pruebas y mantenimiento. Estos procesos son como las etapas de una construcción: primero hay un diseño detallado, luego se comienza a construir, después se verifica que todo esté en orden y finalmente se entrega al cliente.<br><br>Pero ¿qué es lo que produce ISO/IEC 12207? Una descripción de arquitectura. Esto significa que el proceso define cómo debe ser la estructura del software, como las relaciones entre los diferentes componentes y cómo deben funcionar todos juntos. En otras palabras,ISO/IEC 42010: ¿Qué es lo que produce ISO/IEC 12207?<br><br>¿Cómo se relaciona TOGAF con ISO/IEC 42010? | ISO/IEC/IEEE 12207 es un estándar que define los procesos del ciclo de vida del software, estableciendo una estructura común para describir y gestionar las actividades involucradas en el desarrollo, implementación, pruebas y mantenimiento de sistemas de software. En particular, menciona la importancia de la "diseñada" arquitectura (es decir, según ISO/IEC 42010) como resultado del proceso de diseño de arquitectura definido por esta norma, que produce una descripción de arquitectura conforme a ISO/IEC/IEEE 42010. <br><br>¿Qué relación existe entre el proceso de "diseño de arquitectura" y la creación de un documento formal de la arquitectura de sistemas de software complejos? | ISO/IEC 12207 es un estándar que define los procesos del ciclo de vida del software y describe cómo se aplican en una organización. Se enfoca en la planificación, implementación y mantenimiento de proyectos de desarrollo de software. En otras palabras, trata sobre cómo gestionar el proceso de creación de software. ¿Qué implicaciones tiene ISO/IEC 12207 para el enfoque de planificación y gestión del proyecto de software? |
-| Palabras | 154 | 98 | 66 |
-| Normas que nombra | ISO/IEC 12207, ISO/IEC 42010 | ISO/IEC 42010, ISO/IEC/IEEE 12207, ISO/IEC/IEEE 42010 | ISO/IEC 12207 |
+| Respuesta | ISO/IEC 12207 es como un plan de trabajo en una empresa de construcción. Imagina que tienes un proyecto de software grande y complejo, con muchas partes que deben funcionar juntas. Un plan de trabajo similar a ISO/IEC 12207 te ayuda a organizar todo el proceso del desarrollo del software, desde la definición inicial hasta su lanzamiento final.<br><br>Este plan de trabajo define los procesos estándar que se seguirán durante cada fase del ciclo de vida del software, como la planificación, la implementación y la verificación. De esta manera, puedes asegurarte de que todos los pasos estén bien documentados y que no haya problemas importantes que puedan surgir durante el desarrollo. ¿Cómo definirías los procesos estándar para tu próximo proyecto de software? | ISO/IEC 12207 es un estándar que describe los procesos del ciclo de vida del software. En otras palabras, establece las actividades y tareas necesarias para desarrollar, implementar y mantener sistemas de software. Esto incluye desde la definición de requisitos hasta la entrega final del producto.<br><br>¿En qué relación se relaciona este proceso con el concepto de arquitectura en el contexto de ISO/IEC 42010? | ISO/IEC 12207 es un estándar que define los procesos del ciclo de vida del software, especificando las actividades y responsabilidades involucradas en cada fase del proceso. En otras palabras, describe cómo se desarrolla un proyecto de software desde su inicio hasta su finalización. ¿Por qué considera que ISO/IEC 12207 es importante para el desarrollo de proyectos de software en entornos complejos? |
+| Palabras | 121 | 63 | 61 |
+| Normas que nombra | ISO/IEC 12207 | ISO/IEC 12207, ISO/IEC 42010 | ISO/IEC 12207 |
+| ...no comunes a los tres (posible atribución cruzada) | — | ISO/IEC 42010 | — |
 | Normas/años sin respaldo en los documentos | ninguno | ninguno | ninguno |
 | Ideas ancla que faltan | ninguna | ninguna | ninguna |
 | Afirmaciones que los documentos contradicen | ninguna | ninguna | ninguna |
 | Marca de analogía/situación | ✅ | ❌ | ✅ |
 
-Similitud de texto entre pares (1 = idéntico; umbral de «distintas» < 0.8): novato~estandar = 0.07, novato~avanzado = 0.11, estandar~avanzado = 0.21. El avanzado cierra en pregunta: ✅; con marca socrática: ❌.
+Similitud de texto entre pares (1 = idéntico; umbral de «distintas» < 0.8): novato~estandar = 0.07, novato~avanzado = 0.11, estandar~avanzado = 0.16. El avanzado cierra en pregunta: ✅; con marca socrática: ✅.
 
 **Segunda vez, conversación nueva (caché):** novato: desde caché, estandar: desde caché, avanzado: generada, anonimo: desde caché. Recibió lo suyo: {novato: ✅, estandar: ✅, avanzado: ❌}; recibió la respuesta de otro estudiante: ninguno; el anónimo recibe lo del estándar: ✅.
 

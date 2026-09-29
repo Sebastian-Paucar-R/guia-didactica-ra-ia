@@ -879,6 +879,29 @@ def test_con_los_perfiles_desactivados_todo_funciona_como_antes(rig):
     assert r["tipo"] == "respuesta" and r["adaptacion"] is None
 
 
+def test_el_contexto_escaso_acota_la_profundidad_aunque_el_perfil_pida_extensa(tmp_path, docs, monkeypatch):
+    """La extensión la limita también lo que de verdad se recuperó, no solo el perfil: con poco material, ni un
+    perfil 'extensa' ni PROFUNDIZAR se alargan a rellenar (item 2 del encargo)."""
+    monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", -1.0)
+    (docs / "markdown").mkdir(parents=True)
+    (docs / "markdown" / "corta.md").write_text(
+        "# ISO 9001\n\nISO 9001 es una norma de gestión de la calidad, descrita aquí muy brevemente.", encoding="utf-8")
+    llm, juez = LLMFalso(RESPUESTA_TUTOR), JuezFalso()
+    perfiles = PerfilService(tmp_path / "perfiles.db")
+    rag = RAGService(
+        embeddings=DeterministicFakeEmbedding(size=32), persist_dir=tmp_path / "bv", docs_dir=docs,
+        sincronizar_al_iniciar=False, llm=llm.runnable(), llm_clasificador=juez.runnable(),
+        llm_reformulador=LLMFalso(PREGUNTA).runnable(), llm_redireccion=LLMFalso("Redirección").runnable(),
+        perfiles=perfiles)
+    rag.sincronizar()
+    perfiles.guardar(PerfilEstudiante(user_id="novato", **NOVATO))   # profundidad_preferida="extensa"
+
+    r = rag.get_answer(PREGUNTA, conversation_id="c1", user_id="novato")
+    prompt = [p for p in llm.prompts if "MODO DE ESTA RESPUESTA" in p][-1]
+    assert r["adaptacion"]["profundidad"] == "breve" and "p=extensa" not in r["adaptacion"]["segmento"]
+    assert tutor.AVISO_CONTEXTO_ESCASO.strip() in prompt
+
+
 # ---- /chat
 
 @pytest.fixture

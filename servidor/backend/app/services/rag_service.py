@@ -5,9 +5,13 @@ import shutil
 import sqlite3
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
+
+from app.core.chroma_compat import permitir_chromadb_sin_grpc
+
+permitir_chromadb_sin_grpc()   # antes de importar chromadb: ver core/chroma_compat.py
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -20,7 +24,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.core.config import settings
 from app.core import silabo
 from app.core.silabo import texto_silabo, ubicar_en_silabo
-from app.models.perfil import PerfilEstudiante
+from app.models.perfil import PROFUNDIDADES, PerfilEstudiante
 from app.services import adaptacion_service as adaptacion
 from app.services import pertinencia_service as pertinencia
 from app.services import tutor_service as tutor
@@ -69,19 +73,25 @@ class RAGService:
         # Mismo num_ctx en todas las instancias: si difiere, Ollama recarga el modelo en cada cambio,
         # y con el valor por defecto (2048) el prompt del tutor se truncaría por el principio.
         ctx = settings.NUM_CTX
+        # Modelo de clasificación (llamadas cortas y deterministas: pertinencia, intención, reformular un
+        # seguimiento), aparte del de generación (la respuesta que lee el estudiante): permite la opción híbrida
+        # de reportes/comparativa_modelos.md (clasificador pequeño y rápido + generador mayor), sin efecto si
+        # MODELO_CLASIFICADOR no está configurado (usa el mismo MODELO_LLM de siempre).
+        modelo_clasificador = settings.MODELO_CLASIFICADOR or settings.MODELO_LLM
         self.llm = llm or ChatOllama(
             model=settings.MODELO_LLM, temperature=0.35, num_ctx=ctx,
             num_predict=settings.MAX_TOKENS_RESPUESTA, repeat_penalty=settings.REPEAT_PENALTY)
         # Llamadas cortas y deterministas: clasificación DENTRO/FUERA (una palabra) y selección de
         # temas relacionados para la redirección (hasta 3 números)
         self.llm_clasificador = llm_clasificador or ChatOllama(
-            model=settings.MODELO_LLM, temperature=0, num_predict=16, num_ctx=ctx)
-        # Redirección: temperatura alta para que la redacción varíe entre respuestas
+            model=modelo_clasificador, temperature=0, num_predict=16, num_ctx=ctx)
+        # Redirección: prosa que lee el estudiante (como la respuesta), con temperatura alta para que la
+        # redacción varíe entre respuestas; usa el modelo de generación, no el de clasificación.
         self.llm_redireccion = llm_redireccion or ChatOllama(
             model=settings.MODELO_LLM, temperature=0.9, num_ctx=ctx, num_predict=400)
-        # Reescritura de seguimientos como pregunta autónoma: determinista y corta
+        # Reescritura de seguimientos como pregunta autónoma: determinista y corta, como la clasificación
         self.llm_reformulador = llm_reformulador or ChatOllama(
-            model=settings.MODELO_LLM, temperature=0, num_predict=80, num_ctx=ctx)
+            model=modelo_clasificador, temperature=0, num_predict=80, num_ctx=ctx)
         self.memoria = memoria or MemoriaConversacional(
             max_turnos=settings.MEMORIA_MAX_TURNOS, max_conversaciones=settings.MEMORIA_MAX_CONVERSACIONES)
         # Caché semántico (SQLite): debe existir antes de sincronizar(), que lo invalida si el índice cambia
@@ -343,7 +353,7 @@ class RAGService:
         # También los aciertos: el estudiante vio esa respuesta, así que un seguimiento debe poder apoyarse en ella
         if resultado["tipo"] in ("respuesta", "funcionamiento", "redireccion", "sin_contexto"):
             self.memoria.agregar(conversation_id, question, resultado["response"], resultado["tipo"],
-                                 resultado.get("intencion", ""))
+                                 resultado.get("intencion", ""), resultado.get("ubicacion"))
         resultado["tiempo_respuesta_ms"] = round((time.perf_counter() - inicio) * 1000, 1)
         if consulta:
             self._anotar_en_cache(question, consulta, resultado)
@@ -497,9 +507,9 @@ class RAGService:
 
     def _flujo(self, question: str, turnos: list, traza: dict) -> dict:
         """Filtro de pertinencia (orden): 1) excepciones (saludo, preguntas sobre el tutor); 2) palabras clave del
-        YAML del sílabo; 3) pedido de abandonar el rol sin tema del sílabo; 4) score de similitud de los
-        fragmentos vs UMBRAL_PERTINENCIA; 5) si ninguno lo supera, el LLM elige un tema del YAML o FUERA.
-        FUERA => redirección, sin responder el contenido."""
+        YAML del sílabo; 3) pedido de abandonar el rol sin tema del sílabo; 4) seguimiento sin tema propio: hereda
+        el tema del turno anterior; 5) score de similitud de los fragmentos vs UMBRAL_PERTINENCIA; 6) si ninguno lo
+        supera, el LLM elige un tema del YAML o FUERA. FUERA => redirección, sin responder el contenido."""
         question_lower = question.lower().strip()
 
         # Único mensaje predefinido
@@ -545,6 +555,15 @@ class RAGService:
                 # Quiere sacar al tutor de su rol y no toca ningún tema del sílabo: no hay nada que responder
                 _log_filtro("rol", autonoma, mejor)
                 return self._redirigir(question)
+            elif turnos and turnos[-1].ubicacion and adaptacion.es_seguimiento_puro(question):
+                # Seguimiento sin tema propio ("explícame eso mejor", "dame otro ejemplo"): hereda el tema del
+                # turno anterior en vez de arriesgarse a clasificar. Si el reformulador (un LLM de 3B) no logró
+                # meter el tema real en la pregunta autónoma, el score o el clasificador pueden juzgar "fuera"
+                # una pregunta que sigue siendo del temario (medido: 3 de 25 seguimientos así, en una evaluación
+                # real, terminaron redirigidos por error).
+                previa = turnos[-1].ubicacion
+                traza["ubicacion"] = pertinencia.Ubicacion(previa["unidad"], previa["tema_id"], previa["tema"], "seguimiento")
+                _log_filtro("seguimiento", autonoma, mejor, ubicacion=traza["ubicacion"])
             elif mejor >= settings.UMBRAL_PERTINENCIA:
                 traza["ubicacion"] = self._ubicar_por_embedding(self.embeddings.embed_query(autonoma))
                 _log_filtro("pertinente", autonoma, mejor, ubicacion=traza["ubicacion"])
@@ -612,6 +631,19 @@ class RAGService:
         # Ajuste al estudiante: cambia cómo se explica (extensión, andamiaje, referencias a lo ya visto), no el contenido.
         # Sin perfil (o con perfil neutro) es vacío y el prompt sale igual que siempre.
         ajuste = adaptacion.construir_adaptacion(perfil, ubicacion, intencion)
+        # La profundidad la acota también lo que de verdad se recuperó, no solo el perfil: con poco contexto,
+        # "extensa" (o PROFUNDIZAR sin más) lleva a un modelo de 3B a rellenar con generalidades en vez de admitir
+        # que hay poco material (ver tutor.nivel_de_contexto). El segmento del caché se recalcula con la
+        # profundidad final, que es la que de verdad generó la respuesta (adaptacion_service.segmento_de).
+        nivel_ctx = tutor.nivel_de_contexto(fragmentos)
+        profundidad = ajuste.profundidad
+        if intencion != tutor.TAREA:
+            tope = {tutor.ESCASO: "breve", tutor.MODERADO: "media"}.get(nivel_ctx)
+            if tope and PROFUNDIDADES.index(profundidad) > PROFUNDIDADES.index(tope):
+                profundidad = tope
+        if profundidad != ajuste.profundidad:
+            ajuste = replace(ajuste, profundidad=profundidad, segmento=adaptacion.segmento_de(
+                ajuste.nivel, profundidad, ajuste.estilo, ajuste.dificultad))
         variables = {
             "modo": tutor.instrucciones_modo(intencion, ajuste.profundidad),
             "adaptacion": ajuste.texto,
@@ -622,7 +654,8 @@ class RAGService:
             "historial": historial,
             "contexto": contexto,
             "pregunta": question,
-            "aclaracion": f"\n(Se refiere a: {autonoma})" if autonoma != question else "",
+            "aclaracion": (f"\n(Se refiere a: {autonoma})" if autonoma != question else "")
+                + (tutor.AVISO_CONTEXTO_ESCASO if nivel_ctx == tutor.ESCASO and intencion != tutor.TAREA else ""),
         }
         if insistencia:
             variables["modo"] = tutor.INSTRUCCIONES_TAREA_INSISTENTE
@@ -660,10 +693,18 @@ class RAGService:
         # (los temas ya trabajados que la directiva pide citar son nombres del sílabo: se pueden nombrar, no explicar)
         respaldo = " ".join([contexto, historial, question, autonoma, texto_silabo(con_temas=False),
                              *(nombre for _, nombre, _ in ajuste.referencias)])
+        # Normas que la directiva de adaptación permite NOMBRAR por ser un tema que el estudiante ya trabajó,
+        # aunque este turno no haya recuperado un fragmento suyo (ver adaptacion_service._REFERENCIAS).
+        normas_citables = frozenset(n for _, nombre, _ in ajuste.referencias for n in tutor.normas_citadas(nombre))
 
         def sin_respaldo(texto: str) -> list[str]:
+            # normas_no_respaldadas compara contra el respaldo completo (todo el contexto junto): un número de
+            # cláusula real pero de OTRA norma recuperada lo deja pasar. atribuciones_no_respaldadas lo atrapa
+            # comparando cada oración contra los fragmentos de la norma que ESA oración nombra: es el fallo
+            # concreto que se quiere evitar ("le atribuye a una norma lo que pertenece a otra").
             return list(dict.fromkeys(tutor.normas_no_respaldadas(texto, respaldo)
-                                      + tutor.terminos_sin_respaldo(texto, respaldo, texto_silabo())))
+                                      + tutor.terminos_sin_respaldo(texto, respaldo, texto_silabo())
+                                      + tutor.atribuciones_no_respaldadas(texto, fragmentos, normas_citables)))
 
         tipo = "respuesta"
         try:

@@ -1,5 +1,94 @@
 # BITÁCORA
 
+## 2026-09-29 — Atribución cruzada entre normas: modelo mayor, atribución por oración y dos bugs conocidos (en curso)
+
+### Qué se implementó
+- **Bloqueador de entorno corregido**: el servidor no arrancaba (`import chromadb` fallaba con `DLL load failed
+  while importing cygrpc: Una directiva de Control de aplicaciones bloqueó este archivo`; chromadb importa sin
+  condición un exportador OTLP/gRPC que este proyecto nunca usa). Nuevo `core/chroma_compat.py`: si `import grpc`
+  falla, deja un módulo vacío en su lugar antes de que chromadb lo pida. Sin esto no se podía ni correr `pytest`.
+- **Atribución por oración** (`tutor_service.atribuciones_no_respaldadas`): por cada oración que nombra una norma,
+  exige que ESA norma tenga al menos un fragmento RECUPERADO de su propio documento (`mapa_normas`, por nombre de
+  archivo/título) y, si nombra una sola norma, que sus cláusulas/cantidades salgan del fragmento de esa norma (no
+  de otra del contexto); con dos o más normas en la misma oración (contrastes legítimos) solo exige lo primero,
+  para no marcar falsos positivos. Es el fallo que `normas_no_respaldadas` no atrapaba: comparaba contra el
+  respaldo completo, así que una cláusula real pero de OTRA norma recuperada lo dejaba pasar. `normas_citables`
+  sigue permitiendo nombrar (no explicar) temas ya trabajados por el estudiante, como antes. Integrado en el mismo
+  mecanismo de reintento + poda de oraciones que ya existía.
+- **Profundidad acotada por el contexto, no por el perfil** (`tutor_service.nivel_de_contexto`, escaso/moderado/
+  amplio por palabras de contenido recuperadas): con contexto escaso la profundidad efectiva baja a "breve" pase
+  lo que pida el perfil (moderado tope "media"), y se agrega un aviso explícito de no rellenar. TAREA no cambia
+  (sus pasos numerados son una regla aparte). El segmento de caché se recalcula con la profundidad final aplicada
+  (`adaptacion_service.segmento_de`, extraído de `construir_adaptacion` para reutilizarlo), documentado que le
+  cuesta algún acierto de caché a un perfil "extensa" con poco material (nunca sirve la extensión equivocada).
+- **Bug corregido**: `terminos_sin_respaldo` comparaba por subcadena (`in`) y encontraba "dame" dentro de
+  "fundamentos"; ahora usa límites de palabra (`_palabra_en`).
+- **Bug corregido**: un seguimiento sin tema propio ("explícame eso mejor") ya no se reclasifica si el turno
+  anterior tiene un tema conocido: lo hereda directamente (`RAGService._flujo`, con `Turno.ubicacion` nuevo en
+  `memoria_service`). Antes, una reformulación imprecisa del LLM de 3B podía hacer que el score o el clasificador
+  lo redirigieran por error (medido: 3 de 25 en una evaluación real).
+- **Veredictos del banco de adaptación endurecidos** (`pruebas/evaluar_adaptacion.py`): nuevo verdicto
+  `identificadores_coinciden` (las tres respuestas deben citar exactamente las mismas normas; si una nombra una
+  que otra no, es fallo) sumado a `contenido_normativo`; nueva columna/fila en el informe.
+- **Opción híbrida habilitada**: `MODELO_CLASIFICADOR` (aparte de `MODELO_LLM`) en `core/config.py` y
+  `rag_service.py`, para poder usar un modelo distinto en las llamadas cortas de clasificación/reformulación que
+  en la generación de la respuesta, sin tocar nada más.
+
+### Archivos tocados
+Nuevos: `servidor/backend/app/core/chroma_compat.py`. Modificados: `servidor/backend/app/{core/config.py,
+services/{rag_service,tutor_service,adaptacion_service,memoria_service,pertinencia_service}.py}`,
+`servidor/backend/tests/{test_tutor.py}`, `servidor/pruebas/evaluar_adaptacion.py`, `CLAUDE.md`, `BITACORA.md`.
+
+### Verificación realizada
+539 tests (538 + 1 nuevo); los dos tests rotos por el cambio de comportamiento se ajustaron para probar el
+comportamiento nuevo (no se desactivaron). Servidor real arrancado sin errores (`llama3.2`, 10 documentos/111
+chunks); `POST /chat` verificado a mano con una pregunta real. Sanity check a mano de `atribuciones_no_respaldadas`
+(atrapa una atribución cruzada fabricada entre ISO 9001/27001; no marca un contraste legítimo con dos normas).
+
+### Punto 1: comparativa de modelos (`reportes/comparativa_modelos.md`, `pruebas/banco_comparativa_modelos.json`)
+`llama3.1:8b`, `qwen2.5:7b-instruct` y `mistral:7b` corridos contra un banco reducido (18 preguntas) + la parte 1
+de `casos_adaptacion.json` (sin evolución), servidor real por modelo, copia de índice y caché/perfiles nuevos.
+Los tres acertaron el filtro al 100 % igual que `llama3.2`, pero fueron 4-7× más lentos (2,4 s vs 10-17 s medios;
+colas de hasta 40-138 s) y ninguno mostró mejor calidad: `llama3.1:8b` cometió la única atribución cruzada real
+de los cuatro (le atribuyó a ISO 31000 el "pensamiento basado en riesgos" que los documentos dicen que introdujo
+ISO 9001 en 2015) y que además es un caso real del punto ciego documentado del chequeo automático (dos normas en
+la misma oración). **Recomendación: mantener `llama3.2` por defecto.** La opción híbrida (`MODELO_CLASIFICADOR`,
+implementada) no se corrió en vivo por tiempo; queda lista para retomar si cambia el hardware.
+
+Incidente de memoria durante esta parte: el sistema se quedó sin RAM (Fortnite corriendo, ~4 GB) y mató los
+procesos en segundo plano de `mistral:7b` a mitad de arrancar (sin datos útiles perdidos, no había respondido
+ninguna pregunta todavía). Se limpiaron los procesos huérfanos, se descargó el modelo de memoria de Ollama, el
+usuario cerró Fortnite y se repitió solo ese modelo con memoria libre.
+
+### Punto 6: ronda oficial con la configuración final
+Servidor real, copia de `base_vectorial/`, caché y perfiles nuevos, `llama3.2` (configuración final,
+recomendación del punto 1). `pruebas/evaluar_tutor.py --robustez` (banco completo, 60 preguntas): **100 % de
+precisión del filtro (60/60)**, 0 falsos positivos/negativos, latencia media sin caché 3,99 s (antes: 10,1 s —
+más rápido por la GPU, no por el código), unidad acertada 97,5 %, tema acertado 87,5 % — sin regresión frente a
+la corrida anterior. Robustez: 9/10 automático; el "fallo" (R03) es un falso positivo de la heurística leído a
+mano (el tutor no adoptó el personaje de poeta pedido, solo abrió con "Amigo mío"; la heurística no distingue
+tono cercano de abandono de rol). `pruebas/evaluar_adaptacion.py` (con evolución): los 7 verdictos de evolución
+en verde, igual que antes.
+
+**Lectura crítica de las 9 respuestas (ISO 9001, ISO/IEC 25010, ISO/IEC/IEEE 12207 × 3 perfiles): ninguna
+invención ni atribución cruzada encontrada** (contraste directo con la corrida del 20/09 antes de estas
+correcciones, donde el novato tuvo 2 de 3 respuestas con contenido inventado o trasladado entre normas). El
+verdicto automático `contenido_normativo`/`identificadores_coinciden` marcó las 3 preguntas como False, pero por
+motivos benignos confirmados a mano (un perfil escribe "ISO 9001:2015" y otro "ISO 9001", o solo un perfil
+menciona de pasada una norma relacionada en la pregunta de cierre) — el chequeo más estricto (punto 5) está
+haciendo exactamente lo pedido: preferir marcar algo dudoso para que se lea, aunque termine siendo inofensivo.
+Nota aparte, no del encargo: las 3 respuestas sobre ISO/IEC 25010 siguen siendo débiles en los cuatro modelos
+probados (incluido este); la causa es que la recuperación (embeddings, sin cambios) no trae el documento de
+25010 entre los 4 fragmentos para esa pregunta exacta — un problema de recuperación, no de generación, ya
+anotado como pendiente en corridas anteriores.
+
+Se corrigió además, al encontrarlo en vivo, un bug menor en `pruebas/evaluar_adaptacion.py`: el resumen final en
+consola (con `│`/`─`) rompía con `UnicodeEncodeError` en una consola Windows sin `PYTHONUTF8=1` — ya escribía los
+reportes antes de ese punto, así que no perdía datos, pero cortaba el script antes de imprimir el resumen.
+
+### Commit y push
+Pendiente al cerrar esta entrada (se hace a continuación, según lo pedido).
+
 ## 2026-09-20 — Perfilado adaptativo del estudiante (nivel por unidad, profundidad, estilo, historial) y caché segmentado
 
 ### Qué se implementó

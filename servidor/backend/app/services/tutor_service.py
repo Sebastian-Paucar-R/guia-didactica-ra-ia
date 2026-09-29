@@ -436,6 +436,33 @@ def formatear_contexto(fragmentos: list[tuple[str, str, str]]) -> str:
     return "\n\n".join(bloques)
 
 
+ESCASO, MODERADO, AMPLIO = "escaso", "moderado", "amplio"
+# Umbrales en palabras del CONTENIDO recuperado (sin las etiquetas [Documento: ...]). Cada fragmento del splitter
+# ronda 1000 caracteres (~150-160 palabras en español) antes de cortar, así que AMPLIO es, a grandes rasgos, "casi
+# todos los fragmentos pedidos trajeron algo"; por debajo de ESCASO hay como mucho un fragmento corto.
+LIMITE_CONTEXTO_ESCASO = 60
+LIMITE_CONTEXTO_AMPLIO = 220
+
+
+def nivel_de_contexto(fragmentos: list[tuple[str, str, str]]) -> str:
+    """escaso | moderado | amplio, según las palabras de contenido realmente recuperadas.
+
+    Es determinista a propósito: la extensión de una respuesta no puede depender de que un LLM de 3B "note" por
+    sí mismo que el material es poco -tiende a rellenar con generalidades en vez de acortar-, así que esto se
+    decide en código, antes de generar, y limita la profundidad aunque el perfil del estudiante pida más."""
+    palabras = sum(len(texto.split()) for _, _, texto in fragmentos)
+    if palabras < LIMITE_CONTEXTO_ESCASO:
+        return ESCASO
+    if palabras < LIMITE_CONTEXTO_AMPLIO:
+        return MODERADO
+    return AMPLIO
+
+
+AVISO_CONTEXTO_ESCASO = (
+    "\nAVISO: el material recuperado sobre esto es escaso. Responde solo con lo que el CONTEXTO realmente trae, "
+    "sin alargar ni rellenar con generalidades para completar un párrafo, y dilo con claridad si es poco.")
+
+
 # ---------------------------------------------------------------------------
 # Verificación de lo generado
 # ---------------------------------------------------------------------------
@@ -484,6 +511,60 @@ def normas_no_respaldadas(respuesta: str, respaldo: str) -> list[str]:
     return list(dict.fromkeys(invalidas))
 
 
+_ORACION = re.compile(r"(?<=[.!?])\s+")
+
+
+def normas_citadas(texto: str) -> set[str]:
+    """Números de norma (ISO/IEC/IEEE + número) citados en `texto`, sin el año."""
+    return {m.group(1) for m in _NORMA.finditer(texto)}
+
+
+def mapa_normas(fragmentos: list[tuple[str, str, str]]) -> dict[str, str]:
+    """Número de norma -> texto de los fragmentos RECUPERADOS cuyo documento es esa norma (el número aparece en
+    el nombre de archivo o el título, p. ej. 'ISO-IEC_27001_Seguridad_Informacion.md'). Varios fragmentos pueden
+    aportar a la misma norma; una norma sin ningún fragmento propio no entra en el mapa."""
+    mapa: dict[str, list[str]] = {}
+    for nombre, titulo, texto in fragmentos:
+        for numero in normas_citadas(f"{nombre} {titulo}"):
+            mapa.setdefault(numero, []).append(texto)
+    return {numero: "\n".join(textos) for numero, textos in mapa.items()}
+
+
+def atribuciones_no_respaldadas(respuesta: str, fragmentos: list[tuple[str, str, str]],
+                                normas_citables: frozenset[str] = frozenset()) -> list[str]:
+    """Oraciones que le atribuyen algo a una norma (ISO/IEC/IEEE + número) concreta sin respaldo de ESA norma en
+    particular: es el fallo que `normas_no_respaldadas` no atrapa, porque compara contra el respaldo completo
+    (todo el contexto junto) y una cláusula real pero de OTRA norma recuperada también lo pasa ("le atribuye a
+    una norma lo que pertenece a otra"). Dos comprobaciones, del respaldo más fuerte al más débil:
+      1. La norma que la oración nombra no tiene NINGÚN fragmento recuperado de su propio documento ni está en
+         `normas_citables` (las que el estudiante ya trabajó antes: la directiva de adaptación permite NOMBRARLAS
+         como algo ya visto sin que este turno haya recuperado un fragmento suyo; ver adaptacion_service). Se
+         aplica aunque la oración nombre varias normas.
+      2. Si la oración nombra una sola norma (con dos o más -oraciones comparativas, que el perfil "comparativo"
+         pide a propósito- no se puede saber sin ambigüedad a cuál pertenece cada cifra, así que no se exige más
+         que el punto 1: menos falsos positivos en contrastes legítimos) Y esa norma sí tiene fragmentos propios
+         (una solo citable no tiene con qué verificar cláusulas ni cantidades: no se le exige más que nombrarla),
+         sus cláusulas y cantidades deben salir del fragmento de ESA norma, no de otra del contexto."""
+    mapa = mapa_normas(fragmentos)
+    malas: list[str] = []
+    for oracion in _ORACION.split(respuesta):
+        normas = normas_citadas(oracion)
+        if not normas:
+            continue
+        if any(n not in mapa and n not in normas_citables for n in normas):
+            malas.append(oracion.strip())
+            continue
+        if len(normas) == 1 and next(iter(normas)) in mapa:
+            numeros_norma = _numeros_del_texto(mapa[next(iter(normas))])
+            si_clausula = any(m.group(1) not in numeros_norma for m in _CLAUSULA.finditer(oracion))
+            si_conteo = any(
+                (m.group(1) if m.group(1).isdigit() else str(_NUMEROS_EN_LETRAS[m.group(1).lower()])) not in numeros_norma
+                for m in _CONTEO.finditer(oracion))
+            if si_clausula or si_conteo:
+                malas.append(oracion.strip())
+    return list(dict.fromkeys(malas))
+
+
 _TOKEN = re.compile(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9/&+#]+")
 _PARTES_NORMA = {"ISO", "IEC", "IEEE"}
 # Siglas de uso corriente (formatos, protocolos, hardware) que un estudiante nombra al plantear un ejercicio: no son
@@ -491,6 +572,14 @@ _PARTES_NORMA = {"ISO", "IEC", "IEEE"}
 # documentos") en vez de atender la tarea.
 _SIGLAS_GENERICAS = {"PDF", "HTML", "CSS", "XML", "JSON", "CSV", "API", "URL", "SQL", "HTTP", "HTTPS", "USB", "CPU",
                      "GPU", "RAM", "WEB", "APP", "PDFS", "APIS", "TXT", "DOC", "DOCX", "XLS", "XLSX", "PNG", "JPG"}
+
+
+def _palabra_en(candidato_normalizado: str, texto_normalizado: str) -> bool:
+    """¿Aparece `candidato_normalizado` en `texto_normalizado` como palabra completa? Un `in` a secas encuentra
+    "dame" dentro de "fundamentos" (f-un-DAME-ntos) y marcaba un seguimiento corto como sin_contexto por error."""
+    if not candidato_normalizado:
+        return False
+    return re.search(r"(?<![a-z0-9])" + re.escape(candidato_normalizado) + r"(?![a-z0-9])", texto_normalizado) is not None
 
 
 def terminos_sin_respaldo(pregunta: str, base: str, silabo: str = "") -> list[str]:
@@ -514,9 +603,9 @@ def terminos_sin_respaldo(pregunta: str, base: str, silabo: str = "") -> list[st
             es_sigla = len(letras) >= 3 and letras.isupper() and letras == candidato.replace("/", "")
             es_mixto = len(letras) >= 3 and letras != letras.upper() and letras != letras.lower() \
                 and any(c.isupper() for c in letras[1:])
-            nombre_silabo = i > 0 and candidato[:1].isupper() and _normalizar(candidato) in silabo_n and len(letras) >= 4
+            nombre_silabo = i > 0 and candidato[:1].isupper() and _palabra_en(_normalizar(candidato), silabo_n) and len(letras) >= 4
             n = _normalizar(candidato)
-            if n and (es_numero or es_sigla or es_mixto or nombre_silabo) and n not in base_n:
+            if n and (es_numero or es_sigla or es_mixto or nombre_silabo) and not _palabra_en(n, base_n):
                 faltan.append(candidato)
     return list(dict.fromkeys(faltan))
 

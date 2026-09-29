@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # del temario bajan hasta 0.42, así que el umbral es deliberadamente alto (el LLM arbitra la zona gris).
     UMBRAL_PERTINENCIA: float = 0.62
     MODELO_LLM: str = "llama3.2"
+    # Modelo para las llamadas cortas y deterministas (clasificar pertinencia e intención, reformular un
+    # seguimiento): por defecto el mismo MODELO_LLM. Ver reportes/comparativa_modelos.md: llama3.2 clasifica bien
+    # y rápido, así que separar este modelo del de generación permite la opción híbrida (clasificador pequeño +
+    # generador mayor) sin recargar dos veces un modelo grande en memoria para tareas de una sola palabra.
+    MODELO_CLASIFICADOR: str | None = None
     # Respuesta del tutor: tope de tokens y penalización de repeticiones (sin ellos llama3.2 llegó a generar
     # 3800 palabras en bucle) y umbral de similitud por debajo del cual el contexto se considera débil
     MAX_TOKENS_RESPUESTA: int = 1024

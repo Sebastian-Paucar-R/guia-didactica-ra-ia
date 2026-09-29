@@ -13,6 +13,14 @@ Dos mitades que no se mezclan:
 Invariante del caché: `segmento` es función de lo que la directiva realmente dice, así que dos estudiantes comparten
 una respuesta guardada si y solo si su prompt lleva el mismo ajuste. El perfil neutro (estudiante nuevo o anónimo)
 produce texto y segmento vacíos: el prompt es idéntico al de antes de existir el perfil.
+
+La profundidad que devuelve `construir_adaptacion` es la preferida del perfil (o "media" en una TAREA); quien la
+acota además por lo que de verdad se recuperó (poco contexto -> nunca "extensa", nunca PROFUNDIZAR sin límite) es
+`rag_service`, con `tutor.nivel_de_contexto`, porque `construir_adaptacion` se llama antes de recuperar (en el
+caché) y no siempre conoce el contexto. Cuando lo acota, recalcula el segmento con `segmento_de` (no con la
+profundidad preferida): el caché debe guardar bajo el ajuste que de verdad generó la respuesta, aunque eso le
+cueste algún acierto de caché a quien prefiere "extensa" y pregunta algo con poco material (documentado, no un
+error: nunca sirve contenido con la extensión equivocada, solo dejará de reutilizar esa entrada).
 """
 import re
 from collections import Counter
@@ -348,6 +356,23 @@ class Adaptacion:
                 "referencias": [{"tema_id": t, "tema": n, "unidad": u} for t, n, u in self.referencias]}
 
 
+def segmento_de(nivel: str, profundidad: str, estilo: str, dificultad: bool) -> str:
+    """Clave de caché del ajuste realmente aplicado (orden fijo: n=, p=, e=, d=; solo las partes no neutras).
+    Aparte para que quien recorta la profundidad DESPUÉS de construir la Adaptación (rag_service, por poco
+    contexto recuperado: ver tutor.nivel_de_contexto) pueda recalcular el segmento con la profundidad final,
+    y no con la preferida del perfil: el caché debe guardar bajo el ajuste que de verdad generó la respuesta."""
+    partes = []
+    if nivel != "medio":
+        partes.append(f"n={nivel}")
+    if profundidad != "media":
+        partes.append(f"p={profundidad}")
+    if estilo != "conceptual":
+        partes.append(f"e={estilo}")
+    if dificultad:
+        partes.append("d=1")
+    return "|".join(partes)
+
+
 def construir_adaptacion(perfil: PerfilEstudiante | None, ubicacion, intencion: str = tutor.PUNTUAL) -> Adaptacion:
     """Ajuste del prompt para este estudiante en esta consulta. `ubicacion` es la unidad/tema de la consulta (dict o
     Ubicacion; None si no se conoce: entonces el nivel se toma como medio y no se citan temas). Sin perfil, neutro."""
@@ -377,14 +402,10 @@ def construir_adaptacion(perfil: PerfilEstudiante | None, ubicacion, intencion: 
     recordar = [_RECORDATORIO_NIVEL.get(nivel, ""), _RECORDATORIO_ESTILO.get(estilo, "")]
     recordatorio = f" Para este estudiante: {'; '.join(r for r in recordar if r)}." if con_cierre and any(recordar) else ""
 
-    partes = []
-    if nivel != "medio":
-        partes.append(f"n={nivel}")
-    if preferida != "media":
-        partes.append(f"p={preferida}")
-    if estilo != "conceptual":
-        partes.append(f"e={estilo}")
-    if dificultad:
-        partes.append("d=1")
-    return Adaptacion(texto=texto, recordatorio=recordatorio, segmento="|".join(partes), personal=bool(referencias), nivel=nivel,
+    # segmento con `profundidad` (ya ajustada a TAREA), no con `preferida`: para una tarea el prompt siempre
+    # explica el modo TAREA sin importar la profundidad del perfil, así que dos tareas con distinta profundidad
+    # preferida generaban el mismo prompt pero un segmento de caché distinto (fallo silencioso: solo perdía
+    # aciertos, nunca servía contenido equivocado, pero fragmentaba el caché sin motivo).
+    segmento = segmento_de(nivel, profundidad, estilo, dificultad)
+    return Adaptacion(texto=texto, recordatorio=recordatorio, segmento=segmento, personal=bool(referencias), nivel=nivel,
                       profundidad=profundidad, estilo=estilo, dificultad=dificultad, referencias=referencias)

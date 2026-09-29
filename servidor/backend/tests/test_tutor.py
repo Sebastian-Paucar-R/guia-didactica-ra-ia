@@ -223,13 +223,28 @@ def test_saludo_y_errores_no_entran_en_la_memoria(tutor_rag, llms):
 
 
 def test_el_filtro_usa_la_pregunta_autonoma_del_seguimiento(tutor_rag, llms, monkeypatch):
-    """'explícame eso' solo no significa nada: se clasifica y recupera con la pregunta reescrita."""
-    tutor_rag.get_answer("¿Qué es la calidad del software?", conversation_id="c1")
+    """'explícame eso' solo no significa nada: si el turno anterior no dejó un tema conocido (aquí, una
+    redirección), se clasifica y recupera con la pregunta reescrita, no con el mensaje corto."""
+    tutor_rag.memoria.agregar("c1", "¿Qué clima hace en Marte?", "Eso no es de esta asignatura...", "redireccion")
     monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", 2.0)     # ahora todo es candidato
     llms["clasificador"].respuesta = ["DENTRO"]
     tutor_rag.get_answer("Explícame eso mejor", conversation_id="c1")
     prompt_pertinencia = next(p for p in llms["clasificador"].prompts if "clasificador de preguntas" in p)
     assert "Mensaje: ¿Qué es la calidad del software?" in prompt_pertinencia
+
+
+def test_el_seguimiento_sin_tema_propio_hereda_el_tema_del_turno_anterior(tutor_rag, llms, monkeypatch):
+    """Un seguimiento sin tema propio ("explícame eso mejor") no se vuelve a clasificar: si el turno anterior ya
+    tiene un tema conocido, lo hereda directamente. Antes de este fix, un score bajo o una clasificación errónea
+    del LLM (una reformulación imprecisa) podían redirigir por error un seguimiento que seguía siendo del temario
+    (medido: 3 de 25 en una evaluación real)."""
+    r1 = tutor_rag.get_answer("¿Qué es la calidad del software?", conversation_id="c1")
+    assert r1["ubicacion"] is not None
+    monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", 2.0)     # el score nunca alcanzaría por sí solo
+    r2 = tutor_rag.get_answer("Explícame eso mejor", conversation_id="c1")
+    assert r2["tipo"] == "respuesta" and r2["ubicacion"] == {**r1["ubicacion"], "metodo": "seguimiento"}
+    assert not llms["clasificador"].llamadas_con("clasificador de preguntas"), \
+        "un seguimiento sin tema propio no debe gastar el clasificador: hereda el tema, no lo adivina"
 
 
 @pytest.mark.parametrize("mensaje,es", [
@@ -364,6 +379,13 @@ def test_contexto_debil_avisa_al_llm_que_no_lo_explique_de_memoria(tutor_rag, ll
     assert "AVISO: la búsqueda no encontró" not in _ultimo_prompt(llms)
 
 
+def test_terminos_sin_respaldo_no_encuentra_palabras_dentro_de_otras():
+    """'Dame' es subcadena literal de 'fundamentos' (fun-DAME-ntos): un `in` a secas los confundía y un
+    seguimiento corto como 'Dame un ejemplo' salía como sin_contexto por error."""
+    base = "Fundamentos de normalización aplicada al software: ISO, IEC, IEEE."
+    assert tutor.terminos_sin_respaldo("Dame un ejemplo", base, "") == []
+
+
 @pytest.mark.parametrize("pregunta,faltantes", [
     ("¿Qué es Scrum y cuáles son sus roles?", ["Scrum"]),
     ("¿Qué dice la ISO/IEC/IEEE 29119 sobre los niveles de prueba?", ["29119"]),
@@ -381,6 +403,46 @@ def test_terminos_sin_respaldo(pregunta, faltantes):
     from app.core.silabo import texto_silabo
     base = "[Documento: ISO_9001] ISO 9001 Gestión de la Calidad SGSI ISO/IEC 25010 iso_9001 Contenido"
     assert tutor.terminos_sin_respaldo(pregunta, base, texto_silabo()) == faltantes
+
+
+_FRAGMENTOS_9001_27001 = [
+    ("ISO-IEC_27001_Seguridad_Informacion.md", "ISO/IEC 27001 — Seguridad de la Información",
+     "El Anexo A organiza 93 controles en 4 temas."),
+    ("ISO_9001_Gestion_Calidad.md", "ISO 9001 — Gestión de la Calidad",
+     "La cláusula 4.4 trata del sistema de gestión de la calidad y sus procesos."),
+]
+
+
+@pytest.mark.parametrize("respuesta,esperado", [
+    # le atribuye a ISO 9001 (93 controles, cláusula 4.4) lo que en realidad reparte entre las dos normas
+    ("La ISO 9001 define 93 controles organizados en 4 temas, según la cláusula 4.4.", 1),
+    # cada norma con su propio dato: nada que marcar
+    ("La ISO 27001 organiza sus controles en 4 temas dentro del Anexo A. La ISO 9001 trata la cláusula 4.4.", 0),
+    # nombra una norma sin ningún fragmento recuperado de su documento
+    ("La ISO/IEC 42010 describe la arquitectura de software en detalle.", 1),
+    # oración comparativa con dos normas, cada una con su cláusula real: no se exige más que el punto 1
+    ("A diferencia de la ISO 27001 (con su Anexo A), la ISO 9001 trata la cláusula 4.4.", 0),
+])
+def test_atribuciones_no_respaldadas(respuesta, esperado):
+    assert len(tutor.atribuciones_no_respaldadas(respuesta, _FRAGMENTOS_9001_27001)) == esperado
+
+
+def test_atribuciones_no_respaldadas_permite_citar_lo_ya_trabajado_sin_fragmento_propio():
+    """Un tema que el estudiante ya vio (adaptacion_service) se puede NOMBRAR aunque este turno no haya
+    recuperado un fragmento suyo; no se le exige más (no hay con qué verificar cláusulas ni cantidades)."""
+    respuesta = "Como ya viste, la ISO/IEC 25010 aborda la calidad del producto."
+    assert tutor.atribuciones_no_respaldadas(respuesta, _FRAGMENTOS_9001_27001) == [respuesta]
+    assert tutor.atribuciones_no_respaldadas(respuesta, _FRAGMENTOS_9001_27001, frozenset({"25010"})) == []
+
+
+@pytest.mark.parametrize("fragmentos,nivel", [
+    ([], tutor.ESCASO),
+    ([("a.md", "", "Poco contenido recuperado sobre el tema.")], tutor.ESCASO),
+    ([("a.md", "", " ".join(["palabra"] * 100))], tutor.MODERADO),
+    ([("a.md", "", " ".join(["palabra"] * 100)), ("b.md", "", " ".join(["palabra"] * 150))], tutor.AMPLIO),
+])
+def test_nivel_de_contexto(fragmentos, nivel):
+    assert tutor.nivel_de_contexto(fragmentos) == nivel
 
 
 def test_termino_ausente_activa_la_respuesta_sin_contexto_y_no_explica_el_tema(tutor_rag, llms):

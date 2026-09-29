@@ -16,6 +16,7 @@ class Turno:
     respuesta: str
     tipo: str = "respuesta"
     intencion: str = ""   # PUNTUAL | PROFUNDIZAR | TAREA; vacío si no se conoce (p. ej. respuesta servida del caché)
+    ubicacion: dict | None = None   # {unidad, tema_id, tema, metodo} del turno; None si no se ubicó (saludo, error...)
 
 
 class MemoriaConversacional:
@@ -33,12 +34,12 @@ class MemoriaConversacional:
         return turnos[-ultimos:] if ultimos else turnos
 
     def agregar(self, conversation_id: str | None, pregunta: str, respuesta: str, tipo: str = "respuesta",
-                intencion: str = "") -> None:
+                intencion: str = "", ubicacion: dict | None = None) -> None:
         if not conversation_id:
             return
         with self._lock:
             turnos = self._conversaciones.setdefault(conversation_id, [])
-            turnos.append(Turno(pregunta, respuesta, tipo, intencion))
+            turnos.append(Turno(pregunta, respuesta, tipo, intencion, ubicacion))
             del turnos[:-self.max_turnos]
             self._conversaciones.move_to_end(conversation_id)
             while len(self._conversaciones) > self.max_conversaciones:
