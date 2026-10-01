@@ -20,7 +20,8 @@ from app.core.config import settings
 from app.services import tutor_service as tutor
 from app.services.cache_service import CacheSemantico, huella_de, intencion_de
 from app.services.rag_service import RAGService, get_rag_service
-from tests.conftest import LLMFalso, texto_largo
+from app.api.deps import usuario_actual
+from tests.conftest import LLMFalso, sembrar_usuario, texto_largo, usuario_de_prueba
 
 DIM = 8
 Q1 = "¿Qué es la calidad del software?"
@@ -225,6 +226,21 @@ def rig(tmp_path, docs, monkeypatch):
 
     servicio = crear()
     servicio.sincronizar()
+
+    # perfiles/conversaciones tienen clave foránea a usuarios (app/db/models.py), exigida de verdad (ver
+    # app/db/session.py): en la app real ese Usuario ya existe siempre (usuario_actual lo crea en el primer
+    # /chat); aquí se siembra solo con pasar `user_id` a get_answer, en vez de tocar cada test de este archivo.
+    from app.db.session import crear_sessionmaker
+    fabrica = crear_sessionmaker(database_url=settings.DATABASE_URL)
+    original_get_answer = servicio.get_answer
+
+    def get_answer_con_usuario(question, conversation_id=None, user_id=None, leccion_id=None, **kw):
+        if user_id:
+            sembrar_usuario(fabrica, user_id)
+        return original_get_answer(question, conversation_id=conversation_id, user_id=user_id,
+                                   leccion_id=leccion_id, **kw)
+    servicio.get_answer = get_answer_con_usuario
+
     return SimpleNamespace(rag=servicio, llm=llm, clasificador=clasificador, reformulador=reformulador,
                            redireccion=redireccion, cache=cache, emb=emb, docs=docs, crear=crear)
 
@@ -312,6 +328,7 @@ def cliente_docs(rig):
     app = FastAPI()
     app.include_router(documentos_router, prefix="/api/v1")
     app.dependency_overrides[get_rag_service] = lambda: rig.rag
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba("prof-cache-test", rol="docente")
     return TestClient(app)
 
 
@@ -460,23 +477,24 @@ def cliente(rig, monkeypatch):
     app.include_router(chat_module.router, prefix="/api/v1")
     app.include_router(cache_router, prefix="/api/v1")
     app.dependency_overrides[get_rag_service] = lambda: rig.rag
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba("u-cache-test")
     return TestClient(app)
 
 
 def test_chat_informa_desde_cache_y_tiempo_en_ms(rig, cliente):
     rig.llm.efecto = lambda: time.sleep(0.05)       # la generación tarda ≥ 50 ms; el acierto, casi nada
-    primero = cliente.post("/api/v1/chat", json={"message": Q1}).json()
-    segundo = cliente.post("/api/v1/chat", json={"message": Q2}).json()
-    assert primero["desde_cache"] is False and primero["tiempo_respuesta_ms"] >= 50
-    assert segundo["desde_cache"] is True and segundo["tiempo_respuesta_ms"] < primero["tiempo_respuesta_ms"]
-    assert segundo["response"] == primero["response"] and segundo["tipo"] == "respuesta"
-    assert cliente.post("/api/v1/chat", json={"message": "hola"}).json()["desde_cache"] is False
+    primero = cliente.post("/api/v1/chat", json={"mensaje": Q1}).json()
+    segundo = cliente.post("/api/v1/chat", json={"mensaje": Q2}).json()
+    assert primero["desde_cache"] is False and primero["latencia_ms"] >= 50
+    assert segundo["desde_cache"] is True and segundo["latencia_ms"] < primero["latencia_ms"]
+    assert segundo["respuesta"] == primero["respuesta"] and segundo["tipo"] == "respuesta"
+    assert cliente.post("/api/v1/chat", json={"mensaje": "hola"}).json()["desde_cache"] is False
 
 
 def test_endpoint_de_estadisticas(rig, cliente):
     rig.llm.efecto = lambda: time.sleep(0.05)
     for pregunta in (Q1, Q2, Q1, Q3):
-        cliente.post("/api/v1/chat", json={"message": pregunta})
+        cliente.post("/api/v1/chat", json={"mensaje": pregunta})
     r = cliente.get("/api/v1/cache/estadisticas")
     assert r.status_code == 200
     e = r.json()
@@ -572,7 +590,12 @@ QS, QS2 = "¿Qué es ISO 29119?", "Dime qué es ISO 29119"          # tema sin d
 
 
 def _sembrar(rig, user_id, **campos):
+    from app.db.session import crear_sessionmaker
     from app.models.perfil import PerfilEstudiante
+    # perfiles tiene clave foránea a usuarios (app/db/models.py), exigida de verdad (app/db/session.py): se
+    # siembra aquí porque `rig` construye su propio PerfilService internamente (sin pasar perfiles=), sobre el
+    # mismo DATABASE_URL que ya dejó listo el autouse de conftest.py.
+    sembrar_usuario(crear_sessionmaker(database_url=settings.DATABASE_URL), user_id)
     rig.rag.perfiles.guardar(PerfilEstudiante(user_id=user_id, **campos))
 
 

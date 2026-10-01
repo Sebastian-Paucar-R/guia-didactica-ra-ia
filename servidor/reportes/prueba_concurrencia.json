@@ -1,0 +1,110 @@
+[
+  {
+    "n_peticiones": 10,
+    "limite_generaciones_simultaneas": 2,
+    "espera_maxima_s": 90.0,
+    "duracion_total_s": 30.15,
+    "ok": 10,
+    "errores": 0,
+    "detalle_errores": [],
+    "latencia_servidor_ms": {
+      "n": 10,
+      "media_ms": 5732.9,
+      "mediana_ms": 6574.2,
+      "p95_ms": 8172.5,
+      "max_ms": 8172.5,
+      "min_ms": 2075.6
+    },
+    "latencia_cliente_ms": {
+      "n": 10,
+      "media_ms": 18021.2,
+      "mediana_ms": 18999.3,
+      "p95_ms": 30135.0,
+      "max_ms": 30135.0,
+      "min_ms": 3056.2
+    },
+    "peticiones_que_esperaron_cupo": 8,
+    "espera_en_cola_s": {
+      "n": 8,
+      "media_ms": 15165.0,
+      "mediana_ms": 17065.0,
+      "p95_ms": 23740.0,
+      "max_ms": 23740.0,
+      "min_ms": 2940.0
+    },
+    "posicion_maxima_al_llegar": 7,
+    "throughput_peticiones_por_s": 0.33
+  },
+  {
+    "n_peticiones": 20,
+    "limite_generaciones_simultaneas": 2,
+    "espera_maxima_s": 90.0,
+    "duracion_total_s": 50.29,
+    "ok": 20,
+    "errores": 0,
+    "detalle_errores": [],
+    "latencia_servidor_ms": {
+      "n": 20,
+      "media_ms": 5008.4,
+      "mediana_ms": 5644.5,
+      "p95_ms": 9640.1,
+      "max_ms": 9640.1,
+      "min_ms": 202.4
+    },
+    "latencia_cliente_ms": {
+      "n": 20,
+      "media_ms": 20711.7,
+      "mediana_ms": 18295.0,
+      "p95_ms": 50285.6,
+      "max_ms": 50285.6,
+      "min_ms": 271.5
+    },
+    "peticiones_que_esperaron_cupo": 14,
+    "espera_en_cola_s": {
+      "n": 14,
+      "media_ms": 22001.4,
+      "mediana_ms": 20600.0,
+      "p95_ms": 43770.0,
+      "max_ms": 43770.0,
+      "min_ms": 1760.0
+    },
+    "posicion_maxima_al_llegar": 13,
+    "throughput_peticiones_por_s": 0.4
+  },
+  {
+    "n_peticiones": 40,
+    "limite_generaciones_simultaneas": 2,
+    "espera_maxima_s": 90.0,
+    "duracion_total_s": 78.48,
+    "ok": 40,
+    "errores": 0,
+    "detalle_errores": [],
+    "latencia_servidor_ms": {
+      "n": 40,
+      "media_ms": 3929.8,
+      "mediana_ms": 3693.4,
+      "p95_ms": 10711.8,
+      "max_ms": 14242.9,
+      "min_ms": 14.0
+    },
+    "latencia_cliente_ms": {
+      "n": 40,
+      "media_ms": 33686.9,
+      "mediana_ms": 25635.4,
+      "p95_ms": 76085.4,
+      "max_ms": 78462.7,
+      "min_ms": 645.4
+    },
+    "peticiones_que_esperaron_cupo": 30,
+    "espera_en_cola_s": {
+      "n": 30,
+      "media_ms": 38667.0,
+      "mediana_ms": 42205.0,
+      "p95_ms": 72400.0,
+      "max_ms": 72640.0,
+      "min_ms": 2450.0
+    },
+    "posicion_maxima_al_llegar": 29,
+    "throughput_peticiones_por_s": 0.51
+  }
+]

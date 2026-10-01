@@ -22,7 +22,7 @@ REPETIDA = "¿Cómo preparo una receta de pastel de chocolate?"
 
 def preguntar(url: str, mensaje: str) -> tuple[dict, float]:
     peticion = urllib.request.Request(
-        f"{url}/api/v1/chat", data=json.dumps({"message": mensaje}).encode("utf-8"),
+        f"{url}/api/v1/chat", data=json.dumps({"mensaje": mensaje}).encode("utf-8"),
         headers={"Content-Type": "application/json"})
     inicio = time.perf_counter()
     with urllib.request.urlopen(peticion, timeout=600) as r:
@@ -67,14 +67,14 @@ def main():
         ok = "-" if esperado is None else ("OK" if datos["tipo"] == esperado else "FALLO")
         filas.append((grupo, pregunta, esperado or "(libre)", datos["tipo"], decision, score, llm, ok, segundos))
         if datos["tipo"] == "redireccion":
-            redirecciones.append((pregunta, datos["response"]))
+            redirecciones.append((pregunta, datos["respuesta"]))
         print(f"{ok:5} {grupo:14} {datos['tipo']:15} score={score:6} llm={llm:7} {segundos:5.1f}s  {pregunta}", flush=True)
 
     # Variación: la misma pregunta fuera de tema, varias veces
     variaciones = []
     for _ in range(3):
         datos, _ = preguntar(args.url, REPETIDA)
-        variaciones.append(datos["response"])
+        variaciones.append(datos["respuesta"])
         print("VARIACION:", datos["tipo"], flush=True)
 
     def tasa(grupo):

@@ -31,6 +31,18 @@ langchain-text-splitters==1.1.2
 sentence-transformers==5.6.0
 numpy==2.5.1
 
+# Base de datos (identidad, perfiles, conversaciones/mensajes, eventos_perfil: ver app/db/) y migraciones
+sqlalchemy==2.0.51
+alembic==1.20.0
+# Driver de PostgreSQL puro Python (no psycopg2): en Windows, una directiva de Control de aplicaciones puede
+# bloquear el binario nativo de psycopg2 (misma clase de problema que grpc/chromadb, ver core/chroma_compat.py).
+# SQLite (desarrollo local, DATABASE_URL por defecto) no necesita ningún driver aparte.
+pg8000==1.31.5
+
+# Identidad del estudiante: verifica el id_token de Firebase Authentication (core/firebase_auth.py)
+firebase-admin==7.7.0
+
 # Tests
 pytest==9.1.1
+pytest-asyncio==1.4.0
 httpx==0.28.1

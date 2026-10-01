@@ -9,3 +9,18 @@ cache_respuestas.db-*
 # Perfiles de estudiantes (nivel, historial, ritmo): datos personales de ejecución, no se versionan
 perfiles.db
 perfiles.db-*
+
+# Base de datos relacional de desarrollo (usuarios, perfiles, conversaciones/mensajes, eventos_perfil): datos
+# reales de ejecución (identidad, contenido de conversaciones), no se versionan. En SQLite es un archivo local
+# (DATABASE_URL, ver backend/app/core/config.py); en PostgreSQL no aplica (vive en el servidor de base de datos).
+tutor.db
+tutor.db-*
+
+# Variables de entorno y credenciales: nunca en el repositorio (ver backend/.env.example con las claves vacías)
+.env
+.env.*
+!.env.example
+*firebase*service*account*.json
+*firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist

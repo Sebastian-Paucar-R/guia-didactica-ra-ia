@@ -33,7 +33,7 @@ BATERIA = [
 def preguntar(url: str, mensaje: str, conversation_id: str) -> tuple[dict, float]:
     peticion = urllib.request.Request(
         f"{url}/api/v1/chat",
-        data=json.dumps({"message": mensaje, "conversation_id": conversation_id}).encode("utf-8"),
+        data=json.dumps({"mensaje": mensaje, "conversacion_id": conversation_id}).encode("utf-8"),
         headers={"Content-Type": "application/json"})
     inicio = time.perf_counter()
     with urllib.request.urlopen(peticion, timeout=900) as r:
@@ -63,7 +63,7 @@ def main():
         filtro = next((l for l in reversed(lineas) if l.startswith("[FILTRO]")), "")
         reform = next((m.group(1) for l in lineas if (m := re.search(r"reformulada='(.*)'$", l))), "")
         marca = "OK" if intencion == esperada else "REVISAR"
-        palabras = len(datos["response"].split())
+        palabras = len(datos["respuesta"].split())
         print(f"[{conv}] {marca:7} esperada={esperada:11} detectada={intencion:11} tipo={datos['tipo']:10} "
               f"{palabras:4} palabras {seg:5.1f}s | {mensaje[:70]}", flush=True)
         out += [f"## [{conv}] {mensaje}\n",
@@ -71,7 +71,7 @@ def main():
                 f"- tipo: `{datos['tipo']}` · {palabras} palabras · {seg:.1f} s",
                 f"- Pregunta reescrita por la memoria: {reform or '(sin cambios)'}",
                 f"- Filtro: `{filtro or '-'}`\n",
-                "> " + datos["response"].replace("\n", "\n> "), ""]
+                "> " + datos["respuesta"].replace("\n", "\n> "), ""]
     args.salida.write_text("\n".join(out), encoding="utf-8")
     print(f"\nEscrito {args.salida}")
 

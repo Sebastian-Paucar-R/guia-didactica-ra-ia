@@ -221,17 +221,20 @@ def test_endpoint_chat_expone_el_tipo(tutor, llms, monkeypatch):
     monkeypatch.setattr(rag_module, "_instancia", tutor)   # evita crear el RAG real al importar chat
     import app.api.v1.endpoints.chat as chat_module
     monkeypatch.setattr(chat_module, "rag_service", tutor)  # chat.py lo fija al importarse
+    from app.api.deps import usuario_actual
+    from tests.conftest import usuario_de_prueba
     router = chat_module.router
 
     app = FastAPI()
     app.include_router(router, prefix="/api/v1")
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba("u-pertinencia-test")
     cliente = TestClient(app)
 
     monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", SIEMPRE_CANDIDATA)
     llms["clasificador"].respuesta = "FUERA"
-    datos = cliente.post("/api/v1/chat", json={"message": "¿Cómo se hace un pastel?"}).json()
-    assert datos["tipo"] == "redireccion" and datos["status"] == "success" and datos["response"]
+    datos = cliente.post("/api/v1/chat", json={"mensaje": "¿Cómo se hace un pastel?"}).json()
+    assert datos["tipo"] == "redireccion" and datos["respuesta"]
 
-    assert cliente.post("/api/v1/chat", json={"message": "hola"}).json()["tipo"] == "saludo"
+    assert cliente.post("/api/v1/chat", json={"mensaje": "hola"}).json()["tipo"] == "saludo"
     monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", SIEMPRE_PERTINENTE)
-    assert cliente.post("/api/v1/chat", json={"message": "¿Qué es la calidad?"}).json()["tipo"] == "respuesta"
+    assert cliente.post("/api/v1/chat", json={"mensaje": "¿Qué es la calidad?"}).json()["tipo"] == "respuesta"

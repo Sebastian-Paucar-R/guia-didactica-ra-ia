@@ -1,0 +1,49 @@
+{
+  "_descripcion": "Preguntas frecuentes por unidad del sílabo, para precalentar el caché semántico antes de una sesión con estudiantes (ver pruebas/precalentar_cache.py). Editable: agrega o quita preguntas libremente; cada una se guarda en el caché con el ajuste neutro (sin perfil), que es el que comparten los estudiantes anónimos y los que aún no tienen perfil.",
+  "unidades": [
+    {
+      "unidad": 1,
+      "preguntas": [
+        "¿Qué fases tiene el ciclo de vida del desarrollo de software?",
+        "¿Cuál es la diferencia entre un enfoque predictivo y uno ágil?",
+        "¿Cómo funciona un tablero Kanban y por qué se limita el trabajo en progreso?",
+        "¿Qué son los roles de Scrum y qué hace cada uno?",
+        "¿Qué es un product backlog y para qué sirve?",
+        "¿En qué consiste la cultura DevOps y qué añade DevSecOps?"
+      ]
+    },
+    {
+      "unidad": 2,
+      "preguntas": [
+        "¿Para qué sirve la norma ISO 9001 y qué es un sistema de gestión de la calidad?",
+        "¿Qué es ISO/IEC/IEEE 12207?",
+        "¿Qué es ISO/IEC 25010 y qué características de calidad define?",
+        "¿Cuál es la diferencia entre certificación y acreditación de una organización?",
+        "¿Qué es CMMI y para qué se usa un modelo de madurez de procesos?",
+        "¿Qué establece ISO/IEC 27001 sobre la seguridad de la información?"
+      ]
+    },
+    {
+      "unidad": 3,
+      "preguntas": [
+        "¿Qué es una métrica de software y en qué se diferencia de una medida?",
+        "¿Cómo se estima el esfuerzo de un proyecto de software usando puntos de función?",
+        "¿Qué son los story points y cómo se relacionan con la velocidad de un equipo?",
+        "¿Qué métricas de calidad del producto puedo usar, como la densidad de defectos?",
+        "¿Qué diferencia hay entre lead time y cycle time?",
+        "¿Qué miden las métricas DORA en DevOps?"
+      ]
+    },
+    {
+      "unidad": 4,
+      "preguntas": [
+        "¿Qué diferencia hay entre pruebas unitarias, de integración y de aceptación?",
+        "¿Qué establece la ISO/IEC/IEEE 29119 sobre las pruebas de software?",
+        "¿Qué es TDD y en qué se diferencia de escribir las pruebas después?",
+        "¿Qué es CI/CD y qué diferencia hay entre integración y despliegue continuos?",
+        "¿Cuáles son los tipos de mantenimiento de software según la ISO/IEC/IEEE 14764?",
+        "¿Qué es la observabilidad de un sistema en producción?"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,244 @@
+{
+  "info": {
+    "name": "Tutor IA - Guía Didáctica RA",
+    "description": "Colección de la API del backend (ver docs/contrato_api.md para el detalle de cada campo). Variables de colección: base_url (http://127.0.0.1:8000) e id_token (ID token de Firebase del estudiante/docente autenticado). La autorización Bearer está puesta a nivel de colección; /salud la desactiva explícitamente porque es pública.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{id_token}}", "type": "string"}]
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://127.0.0.1:8000"},
+    {"key": "id_token", "value": ""},
+    {"key": "conversacion_id", "value": ""},
+    {"key": "uid", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "Salud",
+      "item": [
+        {
+          "name": "GET /salud",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {"type": "noauth"},
+            "url": {"raw": "{{base_url}}/api/v1/salud", "host": ["{{base_url}}"], "path": ["api", "v1", "salud"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "GET /usuarios/yo",
+          "request": {
+            "method": "GET",
+            "url": {"raw": "{{base_url}}/api/v1/usuarios/yo", "host": ["{{base_url}}"], "path": ["api", "v1", "usuarios", "yo"]}
+          }
+        },
+        {
+          "name": "POST /usuarios/consentimiento",
+          "request": {
+            "method": "POST",
+            "url": {"raw": "{{base_url}}/api/v1/usuarios/consentimiento", "host": ["{{base_url}}"], "path": ["api", "v1", "usuarios", "consentimiento"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "POST /chat (pregunta nueva)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mensaje\": \"¿Qué es la ISO 9001?\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/api/v1/chat", "host": ["{{base_url}}"], "path": ["api", "v1", "chat"]}
+          }
+        },
+        {
+          "name": "POST /chat (continuar conversación)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mensaje\": \"Explícame eso mejor con un ejemplo\",\n  \"conversacion_id\": \"{{conversacion_id}}\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/api/v1/chat", "host": ["{{base_url}}"], "path": ["api", "v1", "chat"]}
+          }
+        },
+        {
+          "name": "POST /chat (dentro de una lección)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mensaje\": \"¿Y eso qué significa en la práctica?\",\n  \"leccion_id\": \"leccion-iso-9001\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/api/v1/chat", "host": ["{{base_url}}"], "path": ["api", "v1", "chat"]}
+          }
+        },
+        {
+          "name": "GET /cola/estado",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "noauth"},
+            "url": {"raw": "{{base_url}}/api/v1/cola/estado", "host": ["{{base_url}}"], "path": ["api", "v1", "cola", "estado"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Perfil",
+      "item": [
+        {
+          "name": "GET /perfil/{uid}",
+          "request": {
+            "method": "GET",
+            "url": {"raw": "{{base_url}}/api/v1/perfil/{{uid}}", "host": ["{{base_url}}"], "path": ["api", "v1", "perfil", "{{uid}}"]}
+          }
+        },
+        {
+          "name": "GET /perfil/{uid}/progreso",
+          "request": {
+            "method": "GET",
+            "url": {"raw": "{{base_url}}/api/v1/perfil/{{uid}}/progreso", "host": ["{{base_url}}"], "path": ["api", "v1", "perfil", "{{uid}}", "progreso"]}
+          }
+        },
+        {
+          "name": "POST /perfil/{uid}/reiniciar",
+          "request": {
+            "method": "POST",
+            "url": {"raw": "{{base_url}}/api/v1/perfil/{{uid}}/reiniciar", "host": ["{{base_url}}"], "path": ["api", "v1", "perfil", "{{uid}}", "reiniciar"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Progreso (app)",
+      "item": [
+        {
+          "name": "GET /progreso/mio",
+          "request": {
+            "method": "GET",
+            "url": {"raw": "{{base_url}}/api/v1/progreso/mio", "host": ["{{base_url}}"], "path": ["api", "v1", "progreso", "mio"]}
+          }
+        },
+        {
+          "name": "POST /progreso/lecciones/{leccion_id}/completar",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/progreso/lecciones/leccion-iso-9001/completar",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "progreso", "lecciones", "leccion-iso-9001", "completar"]
+            }
+          }
+        },
+        {
+          "name": "POST /progreso/ejercicios/{ejercicio_id}/resolver",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correcto\": true,\n  \"leccion_id\": \"leccion-iso-9001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/progreso/ejercicios/ej-1/resolver",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "progreso", "ejercicios", "ej-1", "resolver"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Historial",
+      "item": [
+        {
+          "name": "GET /historial/conversaciones",
+          "request": {
+            "method": "GET",
+            "url": {"raw": "{{base_url}}/api/v1/historial/conversaciones", "host": ["{{base_url}}"], "path": ["api", "v1", "historial", "conversaciones"]}
+          }
+        },
+        {
+          "name": "GET /historial/conversaciones/{id}/mensajes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/historial/conversaciones/{{conversacion_id}}/mensajes",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "historial", "conversaciones", "{{conversacion_id}}", "mensajes"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Docente",
+      "item": [
+        {
+          "name": "GET /docente/estadisticas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/docente/estadisticas?dias_actividad_reciente=7",
+              "host": ["{{base_url}}"], "path": ["api", "v1", "docente", "estadisticas"],
+              "query": [{"key": "dias_actividad_reciente", "value": "7"}]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Caché",
+      "item": [
+        {
+          "name": "GET /cache/estadisticas",
+          "request": {
+            "method": "GET",
+            "url": {"raw": "{{base_url}}/api/v1/cache/estadisticas", "host": ["{{base_url}}"], "path": ["api", "v1", "cache", "estadisticas"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documentos",
+      "item": [
+        {
+          "name": "GET /documentos",
+          "request": {
+            "method": "GET",
+            "url": {"raw": "{{base_url}}/api/v1/documentos", "host": ["{{base_url}}"], "path": ["api", "v1", "documentos"]}
+          }
+        },
+        {
+          "name": "POST /documentos/subir (docente/admin)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{"key": "archivos", "type": "file", "src": []}]
+            },
+            "url": {"raw": "{{base_url}}/api/v1/documentos/subir", "host": ["{{base_url}}"], "path": ["api", "v1", "documentos", "subir"]}
+          }
+        },
+        {
+          "name": "POST /documentos/reindexar (docente/admin)",
+          "request": {
+            "method": "POST",
+            "url": {"raw": "{{base_url}}/api/v1/documentos/reindexar", "host": ["{{base_url}}"], "path": ["api", "v1", "documentos", "reindexar"]}
+          }
+        }
+      ]
+    }
+  ]
+}

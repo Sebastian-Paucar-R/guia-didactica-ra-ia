@@ -5,8 +5,6 @@ cambia CÓMO se explica: tres estudiantes distintos con la misma pregunta recibe
 el bloque de ajuste y en nada más (mismo contexto, mismas reglas); (3) las verificaciones de la salida siguen
 aplicándose a lo adaptado; (4) un fallo del perfil nunca impide responder.
 """
-import sqlite3
-
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -14,14 +12,17 @@ from langchain_core.embeddings import DeterministicFakeEmbedding
 from langchain_core.prompts import ChatPromptTemplate
 
 import app.services.rag_service as rag_module
+from app.api.deps import usuario_actual
 from app.core.config import settings
+from app.db.models import Perfil as PerfilORM
 from app.models.perfil import VENTANA_SENALES, PerfilEstudiante
 from app.services import adaptacion_service as ad
 from app.services import tutor_service as tutor
+from app.services.historial_service import HistorialService
 from app.services.memoria_service import Turno
 from app.services.perfil_service import PerfilService
 from app.services.rag_service import RAGService
-from tests.conftest import LLMFalso, texto_largo
+from tests.conftest import LLMFalso, sembrar_usuario, texto_largo, usuario_de_prueba
 
 UB22 = {"unidad": 2, "tema_id": "2.2", "tema": "ISO 9001: sistema de gestión de la calidad", "metodo": "palabras_clave"}
 UB25 = {"unidad": 2, "tema_id": "2.5", "tema": "ISO/IEC 25010: calidad del producto de software", "metodo": "palabras_clave"}
@@ -595,27 +596,56 @@ PREGUNTA = "¿Qué es ISO 9001?"
 
 
 @pytest.fixture
-def rig(tmp_path, docs, monkeypatch):
+def rig(tmp_path, docs, monkeypatch, db_session_factory):
     monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", -1.0)   # todo pertinente: aquí se prueba el perfil, no el filtro
     (docs / "markdown").mkdir(parents=True)
     (docs / "markdown" / "iso_9001.md").write_text("# ISO 9001 — Calidad\n\n" + texto_largo("calidad"), encoding="utf-8")
     llm, juez = LLMFalso(RESPUESTA_TUTOR), JuezFalso()
     reformulador = LLMFalso(PREGUNTA)
-    perfiles = PerfilService(tmp_path / "perfiles.db")
+    perfiles = PerfilService(db_session_factory)
+    historial = HistorialService(db_session_factory)
     rag = RAGService(
         embeddings=DeterministicFakeEmbedding(size=32), persist_dir=tmp_path / "bv", docs_dir=docs,
         sincronizar_al_iniciar=False, llm=llm.runnable(), llm_clasificador=juez.runnable(),
-        llm_reformulador=reformulador.runnable(), llm_redireccion=LLMFalso("Redirección").runnable(), perfiles=perfiles)
+        llm_reformulador=reformulador.runnable(), llm_redireccion=LLMFalso("Redirección").runnable(),
+        perfiles=perfiles, historial=historial)
     rag.sincronizar()
+
+    # perfiles/conversaciones tienen clave foránea a usuarios (app/db/models.py), exigida de verdad (ver
+    # app/db/session.py): en la app real ese Usuario ya existe siempre (usuario_actual lo crea en el primer
+    # /chat), así que aquí se siembra solo con pasar `user_id` a get_answer, en vez de tocar cada uno de los
+    # ~20 sitios de este archivo que ya llaman rag.get_answer(..., user_id=...).
+    original_get_answer = rag.get_answer
+
+    def get_answer_con_usuario(question, conversation_id=None, user_id=None, leccion_id=None, **kw):
+        if user_id:
+            sembrar_usuario(db_session_factory, user_id)
+        return original_get_answer(question, conversation_id=conversation_id, user_id=user_id,
+                                   leccion_id=leccion_id, **kw)
+    rag.get_answer = get_answer_con_usuario
+
+    # Varios tests llaman _actualizar_perfil directamente (sin pasar por get_answer, para fijar el `resultado` a
+    # mano): igual necesita el Usuario sembrado (get_answer también pasa por aquí, así que esto NO agrega
+    # historial: get_answer ya lo hizo antes de llamar a _actualizar_perfil, y hacerlo otra vez aquí lo contaría
+    # dos veces. Los tests que simulan un turno completo llaman aparte a rig.rag.historial.registrar_turno).
+    original_actualizar_perfil = rag._actualizar_perfil
+
+    def actualizar_perfil_con_usuario(user_id, conversation_id, question, resultado, turnos):
+        if user_id:
+            sembrar_usuario(db_session_factory, user_id)
+        return original_actualizar_perfil(user_id, conversation_id, question, resultado, turnos)
+    rag._actualizar_perfil = actualizar_perfil_con_usuario
 
     class Rig:
         pass
     r = Rig()
     r.rag, r.llm, r.juez, r.reformulador, r.perfiles = rag, llm, juez, reformulador, perfiles
+    r.db_session_factory = db_session_factory
     return r
 
 
 def _sembrar(rig, user_id, **campos):
+    sembrar_usuario(rig.db_session_factory, user_id)
     rig.perfiles.guardar(PerfilEstudiante(user_id=user_id, **campos))
 
 
@@ -805,11 +835,20 @@ def test_tres_pedidos_de_ejemplo_cambian_el_estilo_del_perfil(rig):
     assert rig.perfiles.obtener("ana").estilo_preferido == "ejemplos"
 
 
+def _actualizar_con_historial(rig, uid, conversation_id, mensaje, resultado, turnos):
+    """Como rig.rag._actualizar_perfil, pero simulando también el registro de historial que get_answer hace
+    ANTES de actualizar el perfil (ver rag_service.get_answer): estos tests llaman _actualizar_perfil directo,
+    sin pasar por get_answer, así que sin esto el turno no contaría para el ritmo."""
+    rig.rag.historial.registrar_turno(uid, conversation_id, mensaje, resultado.get("response", ""),
+                                      resultado.get("tipo", ""), desde_cache=resultado.get("desde_cache", False))
+    rig.rag._actualizar_perfil(uid, conversation_id, mensaje, resultado, turnos)
+
+
 def test_una_redireccion_o_un_error_solo_cuentan_para_el_ritmo(rig):
     rig.rag.get_answer(PREGUNTA, conversation_id="c1", user_id="ana")
     for tipo in ("redireccion", "saludo", "error"):
-        rig.rag._actualizar_perfil("ana", "c1", "explícame otra vez la teoría de la relatividad",
-                                   {"tipo": tipo, "ubicacion": None}, [])
+        _actualizar_con_historial(rig, "ana", "c1", "explícame otra vez la teoría de la relatividad",
+                                  {"tipo": tipo, "ubicacion": None}, [])
     p = rig.perfiles.obtener("ana")
     assert p.nivel(2) == 3.0 and p.temas_con_dificultad == [] and p.ritmo.mensajes_totales == 4
 
@@ -831,7 +870,7 @@ def test_un_seguimiento_puro_que_el_filtro_redirigio_por_error_sigue_contando(ri
     """En la evaluación real el filtro tomó «No entendí, explícame eso mejor» por otro tema; el estudiante acababa de recibir
     una explicación y lo que hizo (pedir que se la repitan) es claro."""
     rig.rag.get_answer(PREGUNTA, conversation_id="c1", user_id="ana")
-    rig.rag._actualizar_perfil("ana", "c1", "No entendí, explícame eso mejor", REDIRIGIDA, [_turno()])
+    _actualizar_con_historial(rig, "ana", "c1", "No entendí, explícame eso mejor", REDIRIGIDA, [_turno()])
     p = rig.perfiles.obtener("ana")
     assert p.nivel(2) == 2.6 and p.temas_con_dificultad == ["2.2"] and p.ritmo.mensajes_totales == 2
     rig.rag._actualizar_perfil("ana", "c1", "Dame otro ejemplo", REDIRIGIDA, [_turno()])
@@ -845,19 +884,16 @@ def test_un_seguimiento_puro_que_el_filtro_redirigio_por_error_sigue_contando(ri
 ])
 def test_una_redireccion_que_no_es_un_seguimiento_puro_tras_una_explicacion_no_cuenta(rig, mensaje, turnos):
     rig.rag.get_answer(PREGUNTA, conversation_id="c1", user_id="ana")
-    rig.rag._actualizar_perfil("ana", "c1", mensaje, REDIRIGIDA, turnos)
+    _actualizar_con_historial(rig, "ana", "c1", mensaje, REDIRIGIDA, turnos)
     p = rig.perfiles.obtener("ana")
     assert p.nivel(2) == 3.0 and p.temas_con_dificultad == [] and p.ritmo.mensajes_totales == 2    # cuenta para el ritmo, nada más
 
 
-def test_sin_user_id_no_se_guarda_ningun_perfil(rig):
+def test_sin_user_id_no_se_guarda_ningun_perfil(rig, db_session_factory):
     rig.rag.get_answer(PREGUNTA, conversation_id="c1")
     assert not rig.perfiles.existe("")
-    con = sqlite3.connect(rig.perfiles.ruta)
-    try:
-        assert con.execute("SELECT COUNT(*) FROM perfiles").fetchone()[0] == 0
-    finally:
-        con.close()
+    with db_session_factory() as ses:
+        assert ses.query(PerfilORM).count() == 0
 
 
 def test_un_fallo_al_actualizar_el_perfil_no_impide_responder(rig, monkeypatch, capsys):
@@ -879,7 +915,8 @@ def test_con_los_perfiles_desactivados_todo_funciona_como_antes(rig):
     assert r["tipo"] == "respuesta" and r["adaptacion"] is None
 
 
-def test_el_contexto_escaso_acota_la_profundidad_aunque_el_perfil_pida_extensa(tmp_path, docs, monkeypatch):
+def test_el_contexto_escaso_acota_la_profundidad_aunque_el_perfil_pida_extensa(tmp_path, docs, monkeypatch,
+                                                                              db_session_factory):
     """La extensión la limita también lo que de verdad se recuperó, no solo el perfil: con poco material, ni un
     perfil 'extensa' ni PROFUNDIZAR se alargan a rellenar (item 2 del encargo)."""
     monkeypatch.setattr(settings, "UMBRAL_PERTINENCIA", -1.0)
@@ -887,7 +924,8 @@ def test_el_contexto_escaso_acota_la_profundidad_aunque_el_perfil_pida_extensa(t
     (docs / "markdown" / "corta.md").write_text(
         "# ISO 9001\n\nISO 9001 es una norma de gestión de la calidad, descrita aquí muy brevemente.", encoding="utf-8")
     llm, juez = LLMFalso(RESPUESTA_TUTOR), JuezFalso()
-    perfiles = PerfilService(tmp_path / "perfiles.db")
+    sembrar_usuario(db_session_factory, "novato")
+    perfiles = PerfilService(db_session_factory)
     rag = RAGService(
         embeddings=DeterministicFakeEmbedding(size=32), persist_dir=tmp_path / "bv", docs_dir=docs,
         sincronizar_al_iniciar=False, llm=llm.runnable(), llm_clasificador=juez.runnable(),
@@ -903,6 +941,10 @@ def test_el_contexto_escaso_acota_la_profundidad_aunque_el_perfil_pida_extensa(t
 
 
 # ---- /chat
+#
+# El uid ya no es un campo libre del cuerpo (item 3 del encargo de identidad/persistencia): sale siempre del
+# usuario autenticado (app/api/deps.py). `cliente(uid)` arma un cliente de prueba ya autenticado como ese uid
+# (y con el consentimiento aceptado, salvo que el test lo pida sin él).
 
 @pytest.fixture
 def cliente(rig, monkeypatch):
@@ -911,20 +953,40 @@ def cliente(rig, monkeypatch):
     monkeypatch.setattr(chat_module, "rag_service", rig.rag)
     app = FastAPI()
     app.include_router(chat_module.router, prefix="/api/v1")
-    return TestClient(app)
+
+    def _autenticado(uid: str, consentimiento: bool = True):
+        sembrar_usuario(rig.db_session_factory, uid, consentimiento=consentimiento)
+        app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba(uid, consentimiento=consentimiento)
+        return TestClient(app)
+    return _autenticado
 
 
-def test_chat_pasa_el_user_id_y_devuelve_el_ajuste(rig, cliente):
+def test_chat_pasa_el_uid_del_token_y_devuelve_el_ajuste(rig, cliente):
     _sembrar(rig, "novato", **NOVATO)
-    d = cliente.post("/api/v1/chat", json={"message": PREGUNTA, "user_id": "novato"}).json()
+    http = cliente("novato")
+    d = http.post("/api/v1/chat", json={"mensaje": PREGUNTA}).json()
     assert d["adaptacion"]["nivel"] == "bajo" and d["adaptacion"]["segmento"] == "n=bajo|p=extensa|e=ejemplos"
     assert rig.perfiles.obtener("novato").temas_consultados == {"2.2": 1}
 
 
-def test_chat_sin_user_id_o_con_user_id_en_blanco_no_adapta(rig, cliente):
-    for cuerpo in ({"message": PREGUNTA}, {"message": PREGUNTA, "user_id": "   "}, {"message": PREGUNTA, "user_id": None}):
-        assert cliente.post("/api/v1/chat", json=cuerpo).json()["adaptacion"] is None
+def test_chat_de_un_estudiante_nuevo_no_adapta(cliente):
+    """No hay forma de mandar el chat "sin identidad": el uid siempre sale del token, así que `adaptacion` ya
+    no es None por "no mandar user_id" (eso ya no existe). Para un estudiante recién llegado (perfil neutro)
+    sigue viniendo, pero con valores neutros: segmento vacío, sin ajuste real (mismo prompt que sin perfil)."""
+    http = cliente("recien-llegado")
+    d = http.post("/api/v1/chat", json={"mensaje": PREGUNTA}).json()["adaptacion"]
+    assert d["segmento"] == "" and d["nivel"] == "medio" and d["dificultad"] is False and d["referencias"] == []
 
 
-def test_chat_rechaza_un_user_id_demasiado_largo(cliente):
-    assert cliente.post("/api/v1/chat", json={"message": PREGUNTA, "user_id": "x" * 101}).status_code == 422
+def test_chat_sin_autenticar_es_401(rig, monkeypatch):
+    import app.api.v1.endpoints.chat as chat_module
+    monkeypatch.setattr(chat_module, "rag_service", rig.rag)
+    app = FastAPI()
+    app.include_router(chat_module.router, prefix="/api/v1")
+    assert TestClient(app).post("/api/v1/chat", json={"mensaje": PREGUNTA}).status_code == 401
+
+
+def test_chat_sin_consentimiento_responde_409(cliente):
+    http = cliente("sin-consentir", consentimiento=False)
+    r = http.post("/api/v1/chat", json={"mensaje": PREGUNTA})
+    assert r.status_code == 409 and "consentimiento" in r.json()["detail"].lower()

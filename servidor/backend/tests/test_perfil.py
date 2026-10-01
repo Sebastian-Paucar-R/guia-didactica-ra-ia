@@ -1,17 +1,20 @@
-"""Perfil del estudiante: modelo, persistencia en SQLite y endpoints /perfil."""
-import sqlite3
-
+"""Perfil del estudiante: modelo, persistencia relacional (app/db/models.py) y endpoints /perfil."""
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
+from app.api.deps import usuario_actual
 from app.api.v1.endpoints.perfil import router as perfil_router
 from app.core import silabo
+from app.db.models import Conversacion, EventoPerfil, Mensaje
+from app.db.models import Perfil as PerfilORM
 from app.models.perfil import (
     MAX_HISTORIAL, NIVEL_INICIAL, UNIDADES, CambioNivel, PerfilEstudiante)
+from app.services.historial_service import HistorialService
 from app.services.perfil_service import PerfilService
 from app.services.rag_service import get_rag_service
+from tests.conftest import sembrar_usuario, usuario_de_prueba
 
 
 def _perfil(**campos) -> PerfilEstudiante:
@@ -100,10 +103,27 @@ def test_el_perfil_sobrevive_a_json():
 
 
 # ================================================================ persistencia
+#
+# Las tablas perfiles/conversaciones/eventos_perfil tienen clave foránea a usuarios (app/db/models.py), y SQLite
+# la exige igual que PostgreSQL (app/db/session.py activa PRAGMA foreign_keys=ON): `servicio` siembra el Usuario
+# de cada uid antes de escribir, para que las pruebas no tengan que hacerlo en cada una (en la app real, ese
+# Usuario ya existe siempre: lo crea usuario_actual en el primer /chat).
 
 @pytest.fixture
-def servicio(tmp_path):
-    return PerfilService(tmp_path / "perfiles.db")
+def servicio(db_session_factory):
+    svc = PerfilService(db_session_factory)
+    original_registrar, original_guardar = svc.registrar_turno, svc.guardar
+
+    def registrar_turno(uid, *a, **kw):
+        sembrar_usuario(db_session_factory, uid)
+        return original_registrar(uid, *a, **kw)
+
+    def guardar(perfil):
+        sembrar_usuario(db_session_factory, perfil.user_id)
+        return original_guardar(perfil)
+
+    svc.registrar_turno, svc.guardar = registrar_turno, guardar
+    return svc
 
 
 def _tocar(unidad=2, nivel_delta=0.0, tema=("2.2", "ISO 9001", 2)):
@@ -121,15 +141,15 @@ def test_sin_perfil_se_devuelve_el_inicial_sin_guardarlo(servicio):
     assert p.user_id == "nadie" and p.es_neutro() and not servicio.existe("nadie")
 
 
-def test_registrar_turno_guarda_y_sobrevive_a_reabrir_la_base(servicio, tmp_path):
+def test_registrar_turno_guarda_y_sobrevive_a_reabrir_la_base(servicio, db_session_factory):
     servicio.registrar_turno("ana", "c1", _tocar(nivel_delta=-0.4))
-    otra_instancia = PerfilService(tmp_path / "perfiles.db")
+    otra_instancia = PerfilService(db_session_factory)   # "reabrir": otra instancia sobre la misma base
     p = otra_instancia.obtener("ana")
     assert otra_instancia.existe("ana") and p.nivel(2) == 2.6
     assert p.temas_consultados == {"2.2": 1} and p.creado_en and p.actualizado_en
 
 
-def test_si_la_actualizacion_falla_no_se_guarda_nada(servicio):
+def test_si_la_actualizacion_falla_no_se_guarda_nada(servicio, db_session_factory):
     def rota(p):
         p.registrar_tema("2.2", "ISO 9001", 2)
         raise RuntimeError("fallo a medias")
@@ -137,11 +157,8 @@ def test_si_la_actualizacion_falla_no_se_guarda_nada(servicio):
     with pytest.raises(RuntimeError):
         servicio.registrar_turno("ana", "c1", rota)
     assert not servicio.existe("ana")
-    con = sqlite3.connect(servicio.ruta)
-    try:
-        assert con.execute("SELECT COUNT(*) FROM sesiones").fetchone()[0] == 0
-    finally:
-        con.close()
+    with db_session_factory() as ses:
+        assert ses.query(EventoPerfil).filter(EventoPerfil.uid_firebase == "ana").count() == 0
 
 
 def test_los_estudiantes_no_se_mezclan(servicio):
@@ -171,34 +188,41 @@ def test_un_turno_sin_cambio_de_nivel_no_agrega_progreso(servicio):
     assert all(len(v) == 1 for v in servicio.progreso("ana").values())
 
 
-def test_ritmo_mensajes_por_sesion_y_duracion_media(tmp_path):
+def test_ritmo_mensajes_por_sesion_y_duracion_media(servicio, db_session_factory):
+    """El ritmo ya no lo cuenta perfil_service: sale de conversaciones/mensajes (historial_service.py), que es
+    quien de verdad registra cada turno del chat. Aquí se siembran directo, como haría HistorialService."""
+    sembrar_usuario(db_session_factory, "ana")
     reloj = iter(["2026-09-20T10:00:00+00:00", "2026-09-20T10:10:00+00:00", "2026-09-20T10:20:00+00:00",
                   "2026-09-21T09:00:00+00:00", "2026-09-22T09:00:00+00:00"])
-    servicio = PerfilService(tmp_path / "p.db", reloj=lambda: next(reloj))
+    historial = HistorialService(db_session_factory, reloj=lambda: next(reloj))
     for conversacion in ("c1", "c1", "c1", "c2", "c3"):
-        p = servicio.registrar_turno("ana", conversacion, _tocar())
+        historial.registrar_turno("ana", conversacion, "¿Qué es ISO 9001?", "...", "respuesta")
+    p = servicio.registrar_turno("ana", "c1", _tocar())
     # c1: 3 mensajes en 20 min; c2 y c3: 1 mensaje (su duración no significa nada y no entra en la media)
     assert p.ritmo.sesiones == 3 and p.ritmo.mensajes_totales == 5
     assert p.ritmo.mensajes_por_sesion == pytest.approx(5 / 3, abs=0.01)
     assert p.ritmo.duracion_media_s == 1200.0
 
 
-def test_sin_conversacion_el_mensaje_no_crea_sesion(servicio):
+def test_sin_conversaciones_el_ritmo_es_cero(servicio):
     p = servicio.registrar_turno("ana", None, _tocar())
     assert p.ritmo.sesiones == 0
 
 
-def test_reiniciar_borra_perfil_progreso_y_sesiones(servicio):
+def test_reiniciar_borra_perfil_y_eventos_pero_no_el_historial(servicio, db_session_factory):
+    sembrar_usuario(db_session_factory, "ana")
+    HistorialService(db_session_factory).registrar_turno("ana", "c1", "¿Qué es ISO 9001?", "...", "respuesta")
     servicio.registrar_turno("ana", "c1", _tocar(nivel_delta=-0.4))
     servicio.registrar_turno("beto", "c2", _tocar(nivel_delta=-0.4))
+
     inicial = servicio.reiniciar("ana")
     assert inicial.es_neutro() and not servicio.existe("ana")
     assert all(len(v) == 1 for v in servicio.progreso("ana").values())
-    con = sqlite3.connect(servicio.ruta)
-    try:
-        assert con.execute("SELECT COUNT(*) FROM sesiones WHERE user_id = 'ana'").fetchone()[0] == 0
-    finally:
-        con.close()
+    with db_session_factory() as ses:
+        assert ses.query(EventoPerfil).filter(EventoPerfil.uid_firebase == "ana").count() == 0
+        # reiniciar el perfil no borra lo que de verdad se conversó
+        assert ses.query(Conversacion).filter(Conversacion.id == "c1").count() == 1
+        assert ses.query(Mensaje).join(Conversacion).filter(Conversacion.id == "c1").count() == 2
     assert servicio.obtener("beto").nivel(2) == 2.6            # el de otro estudiante no se toca
 
 
@@ -208,25 +232,37 @@ def test_guardar_siembra_un_perfil_tal_cual(servicio):
     assert p.nivel(2) == 1.8 and p.profundidad_preferida == "extensa" and p.creado_en
 
 
-def test_user_id_con_comillas_no_rompe_las_consultas(servicio):
+def test_uid_con_comillas_no_rompe_las_consultas(servicio):
     raro = "x'; DROP TABLE perfiles; --"
     servicio.registrar_turno(raro, "c1", _tocar())
     assert servicio.existe(raro) and servicio.reiniciar(raro).user_id == raro
     assert not servicio.existe(raro)
 
 
+def test_un_perfil_sin_usuario_no_se_puede_guardar(db_session_factory):
+    """La clave foránea a usuarios se exige de verdad (PRAGMA foreign_keys=ON en SQLite, siempre en
+    PostgreSQL): sin sembrar el Usuario primero, guardar un perfil falla en vez de quedar huérfano."""
+    from sqlalchemy.exc import IntegrityError
+    servicio_sin_wrapper = PerfilService(db_session_factory)
+    with pytest.raises(IntegrityError):
+        servicio_sin_wrapper.guardar(_perfil())
+
+
 # ================================================================ endpoints
 
 @pytest.fixture
 def cliente(rag):
+    """Por defecto autenticado como "ana"; los tests que necesiten otro uid/rol sobrescriben
+    app.dependency_overrides[usuario_actual]."""
     app = FastAPI()
     app.include_router(perfil_router, prefix="/api/v1")
     app.dependency_overrides[get_rag_service] = lambda: rag
-    return TestClient(app), rag
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba("ana")
+    return TestClient(app), rag, app
 
 
 def test_get_perfil_de_un_estudiante_nuevo_devuelve_el_inicial(cliente):
-    http, rag = cliente
+    http, rag, _ = cliente
     r = http.get("/api/v1/perfil/ana")
     assert r.status_code == 200
     d = r.json()
@@ -237,8 +273,9 @@ def test_get_perfil_de_un_estudiante_nuevo_devuelve_el_inicial(cliente):
     assert not rag.perfiles.existe("ana"), "consultar un perfil nuevo no lo crea"
 
 
-def test_get_perfil_devuelve_lo_aprendido(cliente):
-    http, rag = cliente
+def test_get_perfil_devuelve_lo_aprendido(cliente, db_session_factory):
+    http, rag, _ = cliente
+    sembrar_usuario(db_session_factory, "ana")
 
     def actualizar(p):
         p.registrar_tema("2.2", "ISO 9001: sistema de gestión de la calidad", 2)
@@ -252,12 +289,11 @@ def test_get_perfil_devuelve_lo_aprendido(cliente):
     assert d["temas_consultados"] == {"2.2": 1}
     assert d["dificultades"] == [{"tema_id": "2.2", "tema": "ISO 9001: sistema de gestión de la calidad", "unidad": 2}]
     assert "ISO 9001" in d["resumen_historial"]
-    assert d["ritmo"]["sesiones"] == 1 and d["ritmo"]["mensajes_totales"] == 1
-    assert len(d["historial_resumido"]) == 1
 
 
-def test_progreso_por_unidad_con_titulo_nivel_actual_y_puntos(cliente):
-    http, rag = cliente
+def test_progreso_por_unidad_con_titulo_nivel_actual_y_puntos(cliente, db_session_factory):
+    http, rag, _ = cliente
+    sembrar_usuario(db_session_factory, "ana")
     for _ in range(2):
         rag.perfiles.registrar_turno("ana", "c1", _tocar(nivel_delta=-0.4))
     r = http.get("/api/v1/perfil/ana/progreso")
@@ -271,8 +307,9 @@ def test_progreso_por_unidad_con_titulo_nivel_actual_y_puntos(cliente):
     assert d["unidades"][0]["nivel_actual"] == 3.0 and len(d["unidades"][0]["puntos"]) == 1
 
 
-def test_reiniciar_limpia_el_perfil(cliente):
-    http, rag = cliente
+def test_reiniciar_limpia_el_perfil(cliente, db_session_factory):
+    http, rag, _ = cliente
+    sembrar_usuario(db_session_factory, "ana")
     rag.perfiles.registrar_turno("ana", "c1", _tocar(nivel_delta=-0.4))
     r = http.post("/api/v1/perfil/ana/reiniciar")
     assert r.status_code == 200 and r.json()["es_nuevo"] is True and r.json()["nivel_por_unidad"]["2"] == 3.0
@@ -281,18 +318,44 @@ def test_reiniciar_limpia_el_perfil(cliente):
 
 
 def test_reiniciar_es_solo_post(cliente):
-    http, _ = cliente
+    http, *_ = cliente
     assert http.get("/api/v1/perfil/ana/reiniciar").status_code in (404, 405)
 
 
 def test_user_id_vacio_o_demasiado_largo_se_rechaza(cliente):
-    http, _ = cliente
-    assert http.get("/api/v1/perfil/" + "a" * 101).status_code == 422
+    http, *_ = cliente
+    assert http.get("/api/v1/perfil/" + "a" * 129).status_code == 422
 
 
 def test_perfil_responde_503_si_esta_desactivado(cliente):
-    http, rag = cliente
+    http, rag, _ = cliente
     rag.perfiles = None
     for r in (http.get("/api/v1/perfil/ana"), http.get("/api/v1/perfil/ana/progreso"),
               http.post("/api/v1/perfil/ana/reiniciar")):
         assert r.status_code == 503
+
+
+def test_sin_autenticar_es_401(rag):
+    app = FastAPI()
+    app.include_router(perfil_router, prefix="/api/v1")
+    app.dependency_overrides[get_rag_service] = lambda: rag
+    http = TestClient(app)
+    assert http.get("/api/v1/perfil/ana").status_code == 401
+
+
+def test_un_estudiante_no_puede_leer_el_perfil_de_otro(cliente):
+    """Item 3: el uid del perfilado ya no es un parámetro libre. "ana" (autenticada) pide el perfil de "beto"."""
+    http, *_ = cliente
+    for r in (http.get("/api/v1/perfil/beto"), http.get("/api/v1/perfil/beto/progreso"),
+              http.post("/api/v1/perfil/beto/reiniciar")):
+        assert r.status_code == 403
+
+
+def test_un_docente_si_puede_leer_el_perfil_de_un_estudiante(rag, db_session_factory):
+    sembrar_usuario(db_session_factory, "ana")
+    app = FastAPI()
+    app.include_router(perfil_router, prefix="/api/v1")
+    app.dependency_overrides[get_rag_service] = lambda: rag
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba("prof1", rol="docente")
+    http = TestClient(app)
+    assert http.get("/api/v1/perfil/ana").status_code == 200

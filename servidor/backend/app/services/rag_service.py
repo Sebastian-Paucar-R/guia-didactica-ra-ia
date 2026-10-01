@@ -22,6 +22,7 @@ from langchain_ollama import ChatOllama
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.core.config import settings
+from app.core import lecciones
 from app.core import silabo
 from app.core.silabo import texto_silabo, ubicar_en_silabo
 from app.models.perfil import PROFUNDIDADES, PerfilEstudiante
@@ -29,7 +30,9 @@ from app.services import adaptacion_service as adaptacion
 from app.services import pertinencia_service as pertinencia
 from app.services import tutor_service as tutor
 from app.services.cache_service import TIPOS_CACHEABLES, Acierto, CacheSemantico, intencion_de
+from app.db.session import crear_sessionmaker
 from app.services.conversion_service import decodificar_texto
+from app.services.historial_service import HistorialService
 from app.services.memoria_service import MemoriaConversacional
 from app.services.perfil_service import PerfilService
 
@@ -63,7 +66,8 @@ class RAGService:
     def __init__(self, embeddings=None, persist_dir=None, docs_dir=None,
                  sincronizar_al_iniciar: bool = True, llm=None,
                  llm_clasificador=None, llm_redireccion=None, llm_reformulador=None, memoria=None,
-                 cache: CacheSemantico | None = None, perfiles: PerfilService | None = None):
+                 cache: CacheSemantico | None = None, perfiles: PerfilService | None = None,
+                 historial: "HistorialService | None" = None):
         self._lock = threading.RLock()
         self.persist_dir = Path(persist_dir or settings.BASE_VECTORIAL_DIR)
         self.markdown_dir = (Path(docs_dir) / "markdown") if docs_dir else settings.MARKDOWN_DIR
@@ -79,26 +83,31 @@ class RAGService:
         # MODELO_CLASIFICADOR no está configurado (usa el mismo MODELO_LLM de siempre).
         modelo_clasificador = settings.MODELO_CLASIFICADOR or settings.MODELO_LLM
         self.llm = llm or ChatOllama(
-            model=settings.MODELO_LLM, temperature=0.35, num_ctx=ctx,
+            model=settings.MODELO_LLM, base_url=settings.OLLAMA_BASE_URL, temperature=0.35, num_ctx=ctx,
             num_predict=settings.MAX_TOKENS_RESPUESTA, repeat_penalty=settings.REPEAT_PENALTY)
         # Llamadas cortas y deterministas: clasificación DENTRO/FUERA (una palabra) y selección de
         # temas relacionados para la redirección (hasta 3 números)
         self.llm_clasificador = llm_clasificador or ChatOllama(
-            model=modelo_clasificador, temperature=0, num_predict=16, num_ctx=ctx)
+            model=modelo_clasificador, base_url=settings.OLLAMA_BASE_URL, temperature=0, num_predict=16, num_ctx=ctx)
         # Redirección: prosa que lee el estudiante (como la respuesta), con temperatura alta para que la
         # redacción varíe entre respuestas; usa el modelo de generación, no el de clasificación.
         self.llm_redireccion = llm_redireccion or ChatOllama(
-            model=settings.MODELO_LLM, temperature=0.9, num_ctx=ctx, num_predict=400)
+            model=settings.MODELO_LLM, base_url=settings.OLLAMA_BASE_URL, temperature=0.9, num_ctx=ctx,
+            num_predict=400)
         # Reescritura de seguimientos como pregunta autónoma: determinista y corta, como la clasificación
         self.llm_reformulador = llm_reformulador or ChatOllama(
-            model=modelo_clasificador, temperature=0, num_predict=80, num_ctx=ctx)
+            model=modelo_clasificador, base_url=settings.OLLAMA_BASE_URL, temperature=0, num_predict=80, num_ctx=ctx)
         self.memoria = memoria or MemoriaConversacional(
             max_turnos=settings.MEMORIA_MAX_TURNOS, max_conversaciones=settings.MEMORIA_MAX_CONVERSACIONES)
         # Caché semántico (SQLite): debe existir antes de sincronizar(), que lo invalida si el índice cambia
         self.cache = cache or (CacheSemantico(settings.CACHE_DB_PATH, settings.CACHE_UMBRAL_SIMILITUD)
                                if settings.CACHE_ACTIVO else None)
-        # Perfil adaptativo del estudiante (SQLite aparte del caché: el caché se vacía, los perfiles no)
-        self.perfiles = perfiles or (PerfilService(settings.PERFIL_DB_PATH) if settings.PERFIL_ACTIVO else None)
+        # Perfil adaptativo del estudiante y su historial de conversaciones (base relacional, DATABASE_URL: ver
+        # app/db/session.py). No se construyen aquí por defecto un motor propio salvo que haga falta: la mayoría
+        # de los tests y scripts pasan su propia instancia (o ninguna) para no tocar la base real.
+        self.perfiles = perfiles or (
+            PerfilService(crear_sessionmaker(database_url=settings.DATABASE_URL)) if settings.PERFIL_ACTIVO else None)
+        self.historial = historial or HistorialService(crear_sessionmaker(database_url=settings.DATABASE_URL))
         self._invalidacion_pendiente: str | None = None
         silabo.cargar_silabo()   # el YAML del sílabo debe ser válido desde el arranque, no al primer mensaje
         self._vectores_temas = None   # (temas, embeddings), perezoso: ver _ubicar_por_embedding
@@ -309,12 +318,15 @@ class RAGService:
     # Consulta
     # ------------------------------------------------------------------
 
-    def buscar_con_score(self, pregunta: str, k: int = 4) -> list[tuple[Document, float]]:
-        """Top-k fragmentos con su similitud coseno (0-1, mayor = más parecido)."""
-        resultados = self.vectorstore.similarity_search_with_score(pregunta, k=k)
+    def buscar_con_score(self, pregunta: str, k: int = 4, filtro: dict | None = None) -> list[tuple[Document, float]]:
+        """Top-k fragmentos con su similitud coseno (0-1, mayor = más parecido). `filtro` es un `where` de Chroma
+        (p. ej. `{"nombre_archivo": {"$in": [...]}}`, usado cuando la pregunta llega con `leccion_id`: ver
+        `_flujo`) para recuperar solo dentro de un subconjunto de documentos."""
+        resultados = self.vectorstore.similarity_search_with_score(pregunta, k=k, filter=filtro)
         return [(doc, 1.0 - distancia) for doc, distancia in resultados]
 
-    def get_answer(self, question: str, conversation_id: str | None = None, user_id: str | None = None) -> dict:
+    def get_answer(self, question: str, conversation_id: str | None = None, user_id: str | None = None,
+                   leccion_id: str | None = None) -> dict:
         """Devuelve {response, context, tipo, fuentes, desde_cache, tiempo_respuesta_ms, ubicacion, adaptacion}.
 
         tipo: saludo | funcionamiento | sin_documentos | respuesta | sin_contexto | redireccion | error
@@ -326,6 +338,12 @@ class RAGService:
         estilo, temas ya vistos) y, terminado el turno, actualiza el perfil con lo que hizo. `adaptacion` describe el
         ajuste aplicado (None si no hubo perfil o la respuesta no se adapta). Sin `user_id` todo funciona como antes.
 
+        Con `leccion_id` (id de lección de la app, ver core/lecciones.py) y si se resuelve a un tema del sílabo,
+        la recuperación se prioriza a ese tema (y se restringe a sus documentos, si el tema los declara) y se
+        salta el filtro de pertinencia normal — la lección ya dice de qué tema es la duda. Un `leccion_id` que no
+        se resuelve (vacío, desconocido) no cambia nada. Estas respuestas no pasan por el caché semántico (ver
+        `_consultar_cache`): el contexto que las generó depende de la lección, no solo del texto de la pregunta.
+
         Caché semántico: si una pregunta ya respondida es lo bastante parecida (ver cache_service) y se generó con el
         mismo ajuste al estudiante (segmento), se devuelve su respuesta sin recuperar ni llamar al LLM
         (`desde_cache: True`); si no, se genera como siempre y, si es una respuesta basada en los documentos, se
@@ -334,7 +352,7 @@ class RAGService:
         inicio = time.perf_counter()
         turnos = self.memoria.obtener(conversation_id, ultimos=settings.MEMORIA_TURNOS_PROMPT)
         perfil = self._cargar_perfil(user_id)
-        consulta = self._consultar_cache(question, turnos, perfil)
+        consulta = self._consultar_cache(question, turnos, perfil, leccion_id)
         if consulta and consulta.acierto:
             a = consulta.acierto
             resultado = {"response": a.respuesta, "context": a.contexto, "tipo": a.tipo,
@@ -347,7 +365,7 @@ class RAGService:
             # Una sin_contexto compartida no se adapta; cualquier otra se generó con el ajuste de este segmento
             resultado["adaptacion"] = consulta.ajuste.como_dict() if perfil is not None and a.tipo != "sin_contexto" else None
         else:
-            resultado = self._procesar(question, turnos, perfil)
+            resultado = self._procesar(question, turnos, perfil, leccion_id)
             resultado["desde_cache"] = False
         resultado.setdefault("adaptacion", None)   # las rutas que no se adaptan (saludo, redirección, sin_contexto...) no la traen
         # También los aciertos: el estudiante vio esa respuesta, así que un seguimiento debe poder apoyarse en ella
@@ -357,9 +375,66 @@ class RAGService:
         resultado["tiempo_respuesta_ms"] = round((time.perf_counter() - inicio) * 1000, 1)
         if consulta:
             self._anotar_en_cache(question, consulta, resultado)
+        # El historial va ANTES que el perfil: el ritmo (mensajes por sesión, duración) sale de
+        # conversaciones/mensajes (ver PerfilService._ritmo), así que tiene que quedar escrito antes de que
+        # _actualizar_perfil lo lea, o el turno actual no contaría todavía y el ritmo iría siempre un turno atrás.
+        self._registrar_historial(user_id, conversation_id, question, resultado)
         if perfil is not None:
             self._actualizar_perfil(user_id, conversation_id, question, resultado, turnos)
         return resultado
+
+    def probar_cache(self, question: str, conversation_id: str | None = None,
+                     user_id: str | None = None, leccion_id: str | None = None) -> dict | None:
+        """Solo el camino de acierto de caché de get_answer (mismo resultado, mismos efectos: memoria, contador
+        del caché, perfil, historial), para resolverlo SIN pasar por la cola de generación (ver
+        services/cola_service.py y api/v1/endpoints/chat.py): un acierto responde en ~20 ms sin llamar al modelo,
+        y encolarlo detrás de una generación de varios segundos anularía esa ventaja. None si no hay acierto (o el
+        caché está apagado, o la pregunta no pasa por caché: saludo, seguimiento, `leccion_id`...): en ese caso no
+        se tocó nada todavía (ni memoria ni perfil) y hay que llamar a get_answer() de verdad, dentro de un cupo
+        de la cola.
+
+        Duplica a propósito el inicio de get_answer (turnos, perfil, _consultar_cache): la búsqueda del acierto
+        tiene que poder resolverse ANTES de decidir si hace falta un cupo de generación, y get_answer no puede
+        partirse en dos sin dejar de ser una única llamada síncrona (ver el razonamiento en cola_service.py). Si
+        esto no encuentra acierto, get_answer() la vuelve a intentar: un embedding de más, insignificante frente
+        a los segundos que tarda generar. Si cambia el camino de acierto de get_answer, hay que cambiar este igual."""
+        inicio = time.perf_counter()
+        turnos = self.memoria.obtener(conversation_id, ultimos=settings.MEMORIA_TURNOS_PROMPT)
+        perfil = self._cargar_perfil(user_id)
+        consulta = self._consultar_cache(question, turnos, perfil, leccion_id)
+        if not (consulta and consulta.acierto):
+            return None
+        a = consulta.acierto
+        resultado = {"response": a.respuesta, "context": a.contexto, "tipo": a.tipo,
+                     "fuentes": a.fuentes, "desde_cache": True}
+        ubicacion = None
+        if settings.FILTRO_PERTINENCIA_ACTIVO:
+            ubicacion = pertinencia.ubicar_por_palabras_clave(question) or self._ubicar_por_embedding(consulta.embedding)
+        resultado["ubicacion"] = ubicacion.como_dict() if ubicacion else None
+        resultado["adaptacion"] = consulta.ajuste.como_dict() if perfil is not None and a.tipo != "sin_contexto" else None
+        if resultado["tipo"] in ("respuesta", "funcionamiento", "redireccion", "sin_contexto"):
+            self.memoria.agregar(conversation_id, question, resultado["response"], resultado["tipo"],
+                                 resultado.get("intencion", ""), resultado.get("ubicacion"))
+        resultado["tiempo_respuesta_ms"] = round((time.perf_counter() - inicio) * 1000, 1)
+        self._anotar_en_cache(question, consulta, resultado)
+        self._registrar_historial(user_id, conversation_id, question, resultado)   # antes del perfil: ver get_answer
+        if perfil is not None:
+            self._actualizar_perfil(user_id, conversation_id, question, resultado, turnos)
+        return resultado
+
+    def _registrar_historial(self, user_id: str | None, conversation_id: str | None, question: str,
+                             resultado: dict) -> None:
+        """Best-effort, como el perfil y el caché: un fallo al guardar el historial nunca debe impedir responder."""
+        if self.historial is None or not user_id or not conversation_id:
+            return
+        try:
+            ubicacion = resultado.get("ubicacion") or {}
+            self.historial.registrar_turno(
+                user_id, conversation_id, question, resultado["response"], resultado["tipo"],
+                desde_cache=resultado.get("desde_cache", False), latencia_ms=resultado.get("tiempo_respuesta_ms"),
+                tema_detectado=ubicacion.get("tema_id"), unidad_detectada=ubicacion.get("unidad"))
+        except Exception as e:
+            _log_historial(f"error al registrar el turno ({type(e).__name__}: {e})")
 
     # ------------------------------------------------------------------
     # Perfil del estudiante
@@ -401,16 +476,20 @@ class RAGService:
         except Exception as e:
             _log_perfil(f"error al actualizar el perfil ({type(e).__name__}: {e})")
 
-    def _consultar_cache(self, question: str, turnos: list, perfil: PerfilEstudiante | None = None) -> _ConsultaCache | None:
+    def _consultar_cache(self, question: str, turnos: list, perfil: PerfilEstudiante | None = None,
+                         leccion_id: str | None = None) -> _ConsultaCache | None:
         """None si el caché no aplica a esta pregunta o falla; si no, su embedding, la versión del caché y el
         acierto (si lo hay). Se salta el caché cuando la respuesta no depende solo de la pregunta y los documentos:
-        saludos, preguntas sobre el propio tutor y seguimientos dentro de una conversación ("explícame eso mejor").
+        saludos, preguntas sobre el propio tutor, seguimientos dentro de una conversación ("explícame eso mejor")
+        y preguntas con `leccion_id` (el contexto que las genera depende de la lección, no solo del texto).
 
         Con perfil, la búsqueda se limita a respuestas generadas con el mismo ajuste al estudiante (segmento), y
         se salta cuando la respuesta citaría lo que este estudiante ya trabajó (personal: no se comparte). La
         unidad se estima aquí con palabras clave o embedding; si el filtro decide otra después, solo se pierde
         el acierto, porque lo guardado siempre lleva el segmento del ajuste realmente usado."""
         if self.cache is None or not question.strip() or question.lower().strip() in SALUDOS:
+            return None
+        if leccion_id and lecciones.resolver_leccion(leccion_id) is not None:
             return None
         if turnos and tutor.es_seguimiento(question):
             return None
@@ -495,20 +574,22 @@ class RAGService:
             return {"response": f"Ocurrió un error al generar la respuesta: {str(e)}", "context": "", "tipo": "error"}
         return {"response": texto, "context": "", "tipo": "redireccion"}
 
-    def _procesar(self, question: str, turnos: list, perfil: PerfilEstudiante | None = None) -> dict:
+    def _procesar(self, question: str, turnos: list, perfil: PerfilEstudiante | None = None,
+                  leccion_id: str | None = None) -> dict:
         """Flujo completo (ver `_flujo`) y registro de dónde cae la consulta en el sílabo: `ubicacion` =
         {unidad, tema_id, tema, metodo} si la pregunta es del temario, None si se redirigió o no aplica."""
         traza: dict = {"perfil": perfil}
-        resultado = self._flujo(question, turnos, traza)
+        resultado = self._flujo(question, turnos, traza, leccion_id)
         ubicacion = traza.get("ubicacion")
         resultado["ubicacion"] = ubicacion.como_dict() if ubicacion else None
         resultado["intencion"] = traza.get("intencion", "")
         return resultado
 
-    def _flujo(self, question: str, turnos: list, traza: dict) -> dict:
-        """Filtro de pertinencia (orden): 1) excepciones (saludo, preguntas sobre el tutor); 2) palabras clave del
-        YAML del sílabo; 3) pedido de abandonar el rol sin tema del sílabo; 4) seguimiento sin tema propio: hereda
-        el tema del turno anterior; 5) score de similitud de los fragmentos vs UMBRAL_PERTINENCIA; 6) si ninguno lo
+    def _flujo(self, question: str, turnos: list, traza: dict, leccion_id: str | None = None) -> dict:
+        """Filtro de pertinencia (orden): 1) excepciones (saludo, preguntas sobre el tutor); 2) lección (si
+        `leccion_id` resuelve a un tema del sílabo: ver core/lecciones.py); 3) palabras clave del YAML del
+        sílabo; 4) pedido de abandonar el rol sin tema del sílabo; 5) seguimiento sin tema propio: hereda el tema
+        del turno anterior; 6) score de similitud de los fragmentos vs UMBRAL_PERTINENCIA; 7) si ninguno lo
         supera, el LLM elige un tema del YAML o FUERA. FUERA => redirección, sin responder el contenido."""
         question_lower = question.lower().strip()
 
@@ -540,12 +621,21 @@ class RAGService:
         insistente = tutor.insistencia(turnos, question)
         # Seguimientos: la recuperación y el filtro trabajan con la pregunta ya autónoma
         autonoma = tutor.tarea_original(turnos) if insistente else tutor.reformular_pregunta(self.llm_reformulador, question, turnos)
-        resultados = self.buscar_con_score(autonoma)
+        # Lección (app Flutter): si leccion_id resuelve a un tema, la recuperación se restringe a sus documentos
+        # (si el tema los declara) y la ubicación se fuerza más abajo, sin pasar por el resto del filtro.
+        tema_leccion = lecciones.resolver_leccion(leccion_id)
+        filtro_chroma = {"nombre_archivo": {"$in": list(tema_leccion.archivos)}} \
+            if tema_leccion and tema_leccion.archivos else None
+        resultados = self.buscar_con_score(autonoma, filtro=filtro_chroma)
         mejor = max((score for _, score in resultados), default=0.0)
         cambio_de_rol = pertinencia.es_intento_abandonar_rol(question)
 
         if insistente:
             _log_filtro("insistencia", autonoma, mejor)
+        elif tema_leccion is not None:
+            # La lección ya dice de qué tema es la duda: no hace falta clasificar ni medir similitud.
+            traza["ubicacion"] = pertinencia.Ubicacion(tema_leccion.unidad, tema_leccion.id, tema_leccion.nombre, "leccion")
+            _log_filtro("leccion", autonoma, mejor, ubicacion=traza["ubicacion"])
         elif filtro:
             ubicacion = pertinencia.ubicar_por_palabras_clave(f"{question} {autonoma}" if autonoma != question else question)
             if ubicacion:
@@ -810,6 +900,10 @@ def _log_cache(mensaje: str) -> None:
 
 def _log_perfil(mensaje: str) -> None:
     print(f"[PERFIL] {mensaje}".encode("ascii", "backslashreplace").decode("ascii"))
+
+
+def _log_historial(mensaje: str) -> None:
+    print(f"[HISTORIAL] {mensaje}".encode("ascii", "backslashreplace").decode("ascii"))
 
 
 def _log_tutor(intencion: str, pregunta: str, autonoma: str) -> None:

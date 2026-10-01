@@ -2,18 +2,49 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.api.deps import usuario_actual
 from app.api.v1.endpoints.documentos import router
 from app.core.config import settings
 from app.services.rag_service import get_rag_service
-from tests.conftest import texto_largo
+from tests.conftest import texto_largo, usuario_de_prueba
 
 
 @pytest.fixture
 def client(rag):
+    """Autenticado como docente por defecto: subir/reindexar los exige (ver test_subir_y_reindexar_exigen_rol_docente)."""
     app = FastAPI()
     app.include_router(router, prefix="/api/v1")
     app.dependency_overrides[get_rag_service] = lambda: rag
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba("prof1", rol="docente")
     return TestClient(app)
+
+
+def test_subir_y_reindexar_exigen_rol_docente(rag):
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+    app.dependency_overrides[get_rag_service] = lambda: rag
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba("est1", rol="estudiante")
+    http = TestClient(app)
+    assert http.post("/api/v1/documentos/subir", files=[_archivo("a.md", b"x")]).status_code == 403
+    assert http.post("/api/v1/documentos/reindexar").status_code == 403
+
+
+def test_subir_y_reindexar_exigen_autenticacion(rag):
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+    app.dependency_overrides[get_rag_service] = lambda: rag
+    http = TestClient(app)
+    assert http.post("/api/v1/documentos/subir", files=[_archivo("a.md", b"x")]).status_code == 401
+    assert http.post("/api/v1/documentos/reindexar").status_code == 401
+
+
+def test_listar_no_exige_autenticacion(rag):
+    """GET /documentos no está en el encargo de autenticación (solo chat, perfil e historial; subir/reindexar
+    por rol): la usa también la página de prueba sin login."""
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+    app.dependency_overrides[get_rag_service] = lambda: rag
+    assert TestClient(app).get("/api/v1/documentos").status_code == 200
 
 
 def _archivo(nombre, contenido, campo="archivos"):

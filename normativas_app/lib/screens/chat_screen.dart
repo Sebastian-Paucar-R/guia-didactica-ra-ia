@@ -37,22 +37,24 @@ class _ChatScreenState extends State<ChatScreen> {
     final url = Uri.parse('http://127.0.0.1:8000/api/v1/chat');
 
     try {
-      // 3. Enviar la petición POST con la etiqueta "message"
+      // 3. Enviar la petición POST con el contrato de servidor/docs/contrato_api.md.
+      // NOTA: /api/v1/chat exige "Authorization: Bearer <id_token>" (Firebase) y consentimiento aceptado; este
+      // scaffold aún no inicia sesión con Firebase, así que una llamada real da 401 hasta que se añada ese header.
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: json.encode({
-          "message": text,
-          if (_conversationId != null) "conversation_id": _conversationId,
+          "mensaje": text,
+          if (_conversationId != null) "conversacion_id": _conversationId,
         }),
       );
 
       // 4. Recibir y mostrar la respuesta
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        _conversationId = data["conversation_id"] ?? _conversationId;
+        _conversationId = data["conversacion_id"] ?? _conversationId;
         setState(() {
-          _messages.add(ChatMessage(text: data["response"], isUser: false));
+          _messages.add(ChatMessage(text: data["respuesta"], isUser: false));
         });
       } else {
         setState(() {

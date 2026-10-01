@@ -63,16 +63,16 @@ def preguntar(url: str, mensaje: str, conversation_id: str, timeout: float) -> d
     """Una consulta al chat. Nunca lanza: un fallo de red o del servidor queda como tipo 'error_http'."""
     inicio = time.perf_counter()
     try:
-        datos = _http(f"{url}/api/v1/chat", {"message": mensaje, "conversation_id": conversation_id}, timeout)
+        datos = _http(f"{url}/api/v1/chat", {"mensaje": mensaje, "conversacion_id": conversation_id}, timeout)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
-        datos = {"response": f"{type(e).__name__}: {e}", "tipo": "error_http"}
+        datos = {"respuesta": f"{type(e).__name__}: {e}", "tipo": "error_http"}
     espera = (time.perf_counter() - inicio) * 1000
-    ub = datos.get("ubicacion") or {}
     return {
-        "tipo": datos.get("tipo", "error_http"), "respuesta": datos.get("response", ""),
-        "desde_cache": bool(datos.get("desde_cache")), "ms_servidor": float(datos.get("tiempo_respuesta_ms") or 0.0),
-        "ms_cliente": round(espera, 1), "unidad_obtenida": ub.get("unidad"), "tema_obtenido": ub.get("tema_id"),
-        "metodo": ub.get("metodo"), "tiene_campo_ubicacion": "ubicacion" in datos,
+        "tipo": datos.get("tipo", "error_http"), "respuesta": datos.get("respuesta", ""),
+        "desde_cache": bool(datos.get("desde_cache")), "ms_servidor": float(datos.get("latencia_ms") or 0.0),
+        "ms_cliente": round(espera, 1), "unidad_obtenida": datos.get("unidad_detectada"),
+        "tema_obtenido": datos.get("tema_id_detectado"), "metodo": datos.get("metodo_deteccion"),
+        "tiene_campo_ubicacion": datos.get("unidad_detectada") is not None,
     }
 
 

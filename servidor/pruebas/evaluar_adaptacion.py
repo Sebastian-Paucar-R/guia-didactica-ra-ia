@@ -63,15 +63,18 @@ _SOCRATICA = re.compile(r"\b(?:por qu[eé]|qu[eé] (?:pasar[ií]a|ocurrir[ií]a|
 
 def chat(url: str, mensaje: str, user_id: str | None, conversation_id: str, timeout: float) -> dict:
     """Una consulta al chat. Nunca lanza: un fallo de red o del servidor queda como tipo 'error_http'."""
-    cuerpo = {"message": mensaje, "conversation_id": conversation_id}
+    cuerpo = {"mensaje": mensaje, "conversacion_id": conversation_id}
     if user_id:
-        cuerpo["user_id"] = user_id
+        cuerpo["user_id"] = user_id   # ver nota en el módulo: requiere la sustitución in-process de usuario_actual
     try:
         d = _http(f"{url}/api/v1/chat", cuerpo, timeout)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
-        d = {"response": f"{type(e).__name__}: {e}", "tipo": "error_http"}
-    return {"respuesta": d.get("response", ""), "tipo": d.get("tipo", "error_http"), "desde_cache": bool(d.get("desde_cache")),
-            "ms": d.get("tiempo_respuesta_ms"), "adaptacion": d.get("adaptacion"), "ubicacion": d.get("ubicacion")}
+        d = {"respuesta": f"{type(e).__name__}: {e}", "tipo": "error_http"}
+    return {"respuesta": d.get("respuesta", ""), "tipo": d.get("tipo", "error_http"), "desde_cache": bool(d.get("desde_cache")),
+            "ms": d.get("latencia_ms"), "adaptacion": d.get("adaptacion"),
+            "ubicacion": {"unidad": d.get("unidad_detectada"), "tema_id": d.get("tema_id_detectado"),
+                          "tema": d.get("tema_detectado"), "metodo": d.get("metodo_deteccion")}
+                         if d.get("unidad_detectada") is not None else None}
 
 
 def post_vacio(url: str, timeout: float) -> dict:

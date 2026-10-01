@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     # Temario de la asignatura: única fuente para el filtro de pertinencia, las redirecciones y la auditoría
     SILABO_PATH: Path = SERVIDOR_DIR / "configuracion" / "silabo.yaml"
+    # leccion_id (app Flutter) -> tema del sílabo a priorizar al recuperar contexto; ver core/lecciones.py
+    LECCIONES_PATH: Path = SERVIDOR_DIR / "configuracion" / "lecciones.json"
 
     EXTENSIONES_PERMITIDAS: tuple[str, ...] = (".pdf", ".docx", ".pptx", ".txt", ".md")
     MAX_UPLOAD_MB: int = 50
@@ -29,6 +31,9 @@ class Settings(BaseSettings):
     # del temario bajan hasta 0.42, así que el umbral es deliberadamente alto (el LLM arbitra la zona gris).
     UMBRAL_PERTINENCIA: float = 0.62
     MODELO_LLM: str = "llama3.2"
+    # Host de Ollama (ChatOllama usa este mismo valor por defecto); GET /api/v1/salud lo consulta para saber si
+    # el LLM está disponible antes de que la app deje escribir.
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
     # Modelo para las llamadas cortas y deterministas (clasificar pertinencia e intención, reformular un
     # seguimiento): por defecto el mismo MODELO_LLM. Ver reportes/comparativa_modelos.md: llama3.2 clasifica bien
     # y rápido, así que separar este modelo del de generación permite la opción híbrida (clasificador pequeño +
@@ -58,11 +63,34 @@ class Settings(BaseSettings):
     CACHE_UMBRAL_SIMILITUD: float = 0.95
     CACHE_DB_PATH: Path = SERVIDOR_DIR / "cache_respuestas.db"
 
-    # Perfilado adaptativo del estudiante (SQLite persistente; ver services/perfil_service.py). Con `user_id` en
-    # /chat el tutor estima el nivel por unidad, la profundidad y el estilo preferidos y ajusta cómo explica. Base
-    # aparte del caché: el caché se vacía al cambiar el índice y los perfiles no deben perderse.
+    # Perfilado adaptativo del estudiante: con el `uid` del token de Firebase, el tutor estima el nivel por unidad,
+    # la profundidad y el estilo preferidos y ajusta cómo explica. Persiste en DATABASE_URL (usuarios, perfiles,
+    # conversaciones, mensajes, eventos_perfil: ver app/db/models.py), aparte del caché semántico (CACHE_DB_PATH
+    # arriba), que se vacía al cambiar el índice y no debe arrastrar datos de estudiantes.
     PERFIL_ACTIVO: bool = True
-    PERFIL_DB_PATH: Path = SERVIDOR_DIR / "perfiles.db"
+
+    # Base de datos relacional (identidad, perfiles, conversaciones/mensajes, eventos_perfil). Por defecto SQLite
+    # en archivo, para desarrollo local sin nada que instalar; en un despliegue real, PostgreSQL
+    # (postgresql+pg8000://usuario:clave@host/basededatos — pg8000 es puro Python, ver app/db/session.py).
+    # Migraciones con Alembic (backend/alembic/): `alembic upgrade head` antes de arrancar el servidor.
+    DATABASE_URL: str = f"sqlite:///{(SERVIDOR_DIR / 'tutor.db').as_posix()}"
+
+    # Firebase Authentication: identidad del estudiante/docente (nunca se guarda una contraseña en este proyecto).
+    # FIREBASE_CREDENTIALS_PATH apunta al JSON de la cuenta de servicio (descargado desde la consola de Firebase,
+    # Configuración del proyecto > Cuentas de servicio); nunca se versiona (ver .gitignore). Sin él configurado,
+    # la app arranca igual (no lo necesita para nada más), pero cualquier endpoint protegido falla con un 500
+    # claro en vez de uno críptico de la SDK.
+    FIREBASE_CREDENTIALS_PATH: Path | None = None
+
+    # Cola de generación: cuántas respuestas del LLM pueden generarse en paralelo (ver services/cola_service.py).
+    # Con más de este número de peticiones a la vez, las siguientes esperan turno; la respuesta final incluye
+    # cuánto tuvieron que esperar, y GET /api/v1/cola/estado da una foto en vivo para que el cliente la muestre
+    # mientras espera. 2 por defecto: con un solo LLM local (Ollama, sin cola propia) más que eso satura la GPU/CPU
+    # y solo alarga la cola sin acortar el tiempo total (ver reportes/prueba_concurrencia.md).
+    LIMITE_GENERACIONES_SIMULTANEAS: int = 2
+    # Cuánto puede esperar una petición un cupo de generación antes de que el servidor le responda con un error
+    # claro en vez de dejarla colgada indefinidamente (ver services/cola_service.py).
+    ESPERA_MAXIMA_COLA_S: float = 90.0
 
     class Config:
         env_file = ".env"

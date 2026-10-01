@@ -306,20 +306,23 @@ def test_endpoint_devuelve_y_reutiliza_conversation_id(tutor_rag, llms, monkeypa
     monkeypatch.setattr(rag_module, "_instancia", tutor_rag)   # evita crear el RAG real al importar chat
     import app.api.v1.endpoints.chat as chat_module
     monkeypatch.setattr(chat_module, "rag_service", tutor_rag)  # chat.py lo fija al importarse
+    from app.api.deps import usuario_actual
+    from tests.conftest import usuario_de_prueba
     router = chat_module.router
     app = FastAPI()
     app.include_router(router, prefix="/api/v1")
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba("u-tutor-test")
     cliente = TestClient(app)
 
-    primero = cliente.post("/api/v1/chat", json={"message": "¿Qué es la calidad del software?"}).json()
-    cid = primero["conversation_id"]
+    primero = cliente.post("/api/v1/chat", json={"mensaje": "¿Qué es la calidad del software?"}).json()
+    cid = primero["conversacion_id"]
     assert len(cid) >= 16, "si el cliente no envía id, el servidor genera uno"
 
     llms["llm"].respuesta = "Desarrollo con ejemplo."
-    segundo = cliente.post("/api/v1/chat", json={"message": "Explícame eso mejor", "conversation_id": cid}).json()
-    assert segundo["conversation_id"] == cid and segundo["response"] == "Desarrollo con ejemplo."
+    segundo = cliente.post("/api/v1/chat", json={"mensaje": "Explícame eso mejor", "conversacion_id": cid}).json()
+    assert segundo["conversacion_id"] == cid and segundo["respuesta"] == "Desarrollo con ejemplo."
     assert "Estudiante: ¿Qué es la calidad del software?" in llms["llm"].prompts[-1]
-    assert cliente.post("/api/v1/chat", json={"message": "x", "conversation_id": "a" * 101}).status_code == 422
+    assert cliente.post("/api/v1/chat", json={"mensaje": "x", "conversacion_id": "a" * 101}).status_code == 422
 
 
 # ---------------------------------------------------------------- salvaguardas de la respuesta

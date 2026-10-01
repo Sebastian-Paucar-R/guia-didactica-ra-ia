@@ -7,7 +7,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from app.api.deps import requiere_rol
 from app.core.config import settings
+from app.db.models import Usuario
 from app.services.conversion_service import ConversionError, convertir
 from app.services.rag_service import ESTADO_ERROR, RAGService, get_rag_service
 
@@ -131,9 +133,11 @@ def subir_documentos(
     archivos: list[UploadFile] = File(default=[], description="Uno o varios archivos: PDF, DOCX, PPTX, TXT, MD"),
     files: list[UploadFile] = File(default=[], description="Alias de `archivos`"),
     rag: RAGService = Depends(get_rag_service),
+    _: Usuario = Depends(requiere_rol("docente", "admin")),
 ):
     """Guarda cada archivo en originales/, genera sus copias PDF y Markdown y reindexa el RAG
-    de forma incremental. Cada archivo se procesa de forma independiente."""
+    de forma incremental. Cada archivo se procesa de forma independiente. Solo docente/admin: subir material
+    de la base documental no es una acción de estudiante."""
     todos = [*archivos, *files]
     if not todos:
         raise HTTPException(status_code=422, detail="No se recibió ningún archivo (campo `archivos`).")
@@ -151,8 +155,8 @@ def subir_documentos(
 
 
 @router.post("/reindexar")
-def reindexar(rag: RAGService = Depends(get_rag_service)):
-    """Mantenimiento: reconstruye por completo base_vectorial/ desde documentacion/markdown/."""
+def reindexar(rag: RAGService = Depends(get_rag_service), _: Usuario = Depends(requiere_rol("docente", "admin"))):
+    """Mantenimiento: reconstruye por completo base_vectorial/ desde documentacion/markdown/. Solo docente/admin."""
     return rag.reconstruir()
 
 

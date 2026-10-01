@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
-from pydantic import BaseModel
 
+from app.api.deps import usuario_actual, verificar_propietario
 from app.core import silabo
+from app.db.models import Usuario
 from app.models.perfil import PerfilEstudiante
 from app.services.perfil_service import PerfilService
 from app.services.rag_service import RAGService, get_rag_service
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/perfil", tags=["perfil"])
 
-UserId = Path(min_length=1, max_length=100, description="Identificador del estudiante (el mismo `user_id` de /chat).")
+UserId = Path(min_length=1, max_length=128, description="uid de Firebase del estudiante (el mismo del token).")
 
 
 class TemaConDificultad(BaseModel):
@@ -58,17 +60,22 @@ def _respuesta(perfil: PerfilEstudiante, es_nuevo: bool) -> PerfilRespuesta:
 
 
 @router.get("/{user_id}", response_model=PerfilRespuesta)
-def obtener_perfil(user_id: str = UserId, perfiles: PerfilService = Depends(_perfiles)):
+def obtener_perfil(user_id: str = UserId, usuario: Usuario = Depends(usuario_actual),
+                   perfiles: PerfilService = Depends(_perfiles)):
     """Perfil del estudiante: nivel estimado por unidad (1 a 5), temas consultados y con dificultad, profundidad y
     estilo preferidos, ritmo y los últimos temas trabajados. Un estudiante sin perfil recibe el inicial (nivel 3 en
-    las cuatro unidades) con `es_nuevo: true`; no se guarda hasta su primer mensaje en /chat."""
+    las cuatro unidades) con `es_nuevo: true`; no se guarda hasta su primer mensaje en /chat. Un estudiante solo
+    puede pedir el suyo (403 si pide el de otro); docente/admin pueden pedir cualquiera."""
+    verificar_propietario(usuario, user_id)
     return _respuesta(perfiles.obtener(user_id), es_nuevo=not perfiles.existe(user_id))
 
 
 @router.get("/{user_id}/progreso", response_model=ProgresoRespuesta)
-def obtener_progreso(user_id: str = UserId, perfiles: PerfilService = Depends(_perfiles)):
+def obtener_progreso(user_id: str = UserId, usuario: Usuario = Depends(usuario_actual),
+                     perfiles: PerfilService = Depends(_perfiles)):
     """Evolución del nivel estimado en cada unidad: un punto inicial (nivel 3) y luego cada cambio, con su fecha,
     el motivo (`confusion` o `reflexion_correcta`) y el tema que lo provocó."""
+    verificar_propietario(usuario, user_id)
     perfil, puntos = perfiles.obtener(user_id), perfiles.progreso(user_id)
     titulos = {u["numero"]: u["titulo"] for u in silabo.unidades()}
     return ProgresoRespuesta(user_id=user_id, unidades=[
@@ -78,6 +85,9 @@ def obtener_progreso(user_id: str = UserId, perfiles: PerfilService = Depends(_p
 
 
 @router.post("/{user_id}/reiniciar", response_model=PerfilRespuesta)
-def reiniciar_perfil(user_id: str = UserId, perfiles: PerfilService = Depends(_perfiles)):
-    """Borra el perfil, su progreso y sus sesiones. El estudiante vuelve a empezar desde el perfil inicial."""
+def reiniciar_perfil(user_id: str = UserId, usuario: Usuario = Depends(usuario_actual),
+                     perfiles: PerfilService = Depends(_perfiles)):
+    """Borra el perfil y sus eventos_perfil. El estudiante vuelve a empezar desde el perfil inicial (conserva su
+    historial de conversaciones: reiniciar el perfil no borra lo que pasó)."""
+    verificar_propietario(usuario, user_id)
     return _respuesta(perfiles.reiniciar(user_id), es_nuevo=True)

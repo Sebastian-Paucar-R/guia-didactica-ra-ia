@@ -1,5 +1,156 @@
 # BITÁCORA
 
+## 2026-09-30 — Integración con la app Flutter: contrato de /chat en español, lecciones, progreso (XP/racha), salud y Postman
+
+No se encontró ningún repositorio ni README de `normativas-app-upec` en esta máquina (búsqueda exhaustiva en
+`PROYECTO/`, OneDrive, OneDrive-UPEC, Documents y Downloads); se trabajó con el contrato literal del encargo,
+según su propia instrucción de respaldo.
+
+### Qué se implementó
+- **Contrato de `/chat` en español** (`api/v1/endpoints/chat.py`): `ChatRequest`/`ChatResponse` renombrados a
+  `mensaje`/`conversacion_id`/`leccion_id` (entrada) y `respuesta`/`tipo`/`conversacion_id`/`desde_cache`/
+  `latencia_ms`/`tema_detectado`/`unidad_detectada`/`adaptacion`/`posicion_en_cola`/`espera_estimada_s` (salida),
+  más `tema_id_detectado`/`metodo_deteccion`/`espera_real_s` como campos adicionales (los usan
+  `pruebas/evaluar_tutor.py` y `scripts/prueba_concurrencia.py`, no pedidos por el contrato móvil pero inocuos
+  para un cliente que los ignora). Todos los llamadores internos actualizados: `test_cache.py`, `test_tutor.py`,
+  `test_pertinencia.py`, `test_adaptacion.py`, `pruebas/evaluar_tutor.py`, `pruebas/evaluar_adaptacion.py`,
+  `scripts/prueba_concurrencia.py`, `scripts/bateria_tutor.py`, `scripts/evaluar_pertinencia.py`,
+  `app/static/index.html`, `normativas_app/lib/screens/chat_screen.dart`.
+- **`leccion_id`** (`core/lecciones.py` + `configuracion/lecciones.json`, ya traían la relación lección → tema
+  del sílabo de antes del corte de contexto): terminado de cablear en `RAGService._procesar`/`_flujo` —
+  si resuelve, la recuperación se restringe a los documentos del tema y se fuerza la ubicación (`metodo:
+  leccion`), saltando el filtro de pertinencia normal; estas respuestas no pasan por el caché semántico (ni
+  lectura ni guardado). Tests nuevos: `tests/test_lecciones.py` (el mapeo en aislamiento + el flujo completo).
+- **Progreso de la app (XP, racha, lecciones, ejercicios)**: tablas nuevas `progreso_estudiante`/
+  `eventos_progreso` (`app/db/models.py`, migración `alembic/versions/0002_progreso_app.py`), servicio
+  `services/progreso_service.py` (+20 XP lección, +10/+2 XP ejercicio correcto/incorrecto, racha de días
+  consecutivos) y endpoints `GET /progreso/mio`, `POST /progreso/lecciones/{id}/completar`,
+  `POST /progreso/ejercicios/{id}/resolver` (siempre el propio estudiante). Agregado (nunca por estudiante) en
+  `GET /docente/estadisticas` como `progreso_app`. Tests: `tests/test_progreso.py`.
+- **`GET /api/v1/salud`** (`api/v1/endpoints/salud.py`, público): estado del servidor, modelo configurado,
+  si Ollama responde (`OLLAMA_BASE_URL`, ahora pasado explícitamente a cada `ChatOllama` en vez de confiar en su
+  valor por defecto) y documentos/chunks indexados. Tests: `tests/test_salud.py`.
+- **CORS**: `allow_credentials=True` con `allow_origins=["*"]` era una combinación inválida que los navegadores
+  rechazan (y no hacía falta: la identidad va en `Authorization`, no en cookies); corregido a
+  `allow_credentials=False`.
+- **Documentación de la integración**: `servidor/docs/contrato_api.md` (contrato completo: cada endpoint,
+  ejemplo de petición/respuesta, códigos de error, significado de cada campo — para pasarle a un compañero) y
+  `servidor/docs/tutor_ia.postman_collection.json` (colección Postman v2.1, auth Bearer a nivel de colección,
+  `/salud` y `/cola/estado` marcados `noauth`). CLAUDE.md: sección "Identity, database and generation queue"
+  escrita (se referenciaba cinco veces y nunca existía), con la arquitectura de identidad/DB/cola de la sesión
+  anterior más lo nuevo de esta.
+
+### Bugs encontrados y corregidos durante las pruebas
+- `progreso_service.py`: `ProgresoEstudiante` recién construido tenía `None` en sus columnas numéricas (los
+  `default=0` de SQLAlchemy solo se aplican al hacer INSERT, no al instanciar en Python), así que el primer
+  `+= 1` lanzaba `TypeError`. Corregido inicializando los campos explícitamente al crear la fila.
+- Dos wrappers de prueba (`get_answer_con_usuario` en `test_cache.py` y `test_adaptacion.py`, que siembran el
+  Usuario antes de delegar a `RAGService.get_answer` real) no tenían `leccion_id` en su firma; al pasar a
+  llamarse con 4 posicionales desde `chat.py` (antes 3), fallaban con `TypeError`. Corregido añadiendo el
+  parámetro.
+- `api/v1/endpoints/progreso.py` leía `session_factory_por_defecto()` (el singleton perezoso de `DATABASE_URL`,
+  pensado para que la app real lo cachee una vez por proceso): en pruebas, cada test apunta `DATABASE_URL` a un
+  SQLite temporal distinto, pero el singleton ya inicializado por un test anterior seguía apuntando al primero,
+  así que escribir progreso de otro test fallaba la clave foránea a `usuarios` (la fila no existía en ESA base).
+  Corregido sustituyéndolo con `app.dependency_overrides` en `tests/test_progreso.py`, igual que
+  `api/v1/endpoints/usuarios.py` ya hacía con `get_db`.
+
+### Verificación realizada
+620 tests (601 anteriores + 19 nuevos: `test_progreso.py` (8 servicio + 3 endpoint), `test_salud.py` (3),
+`test_lecciones.py` (8) — el resto de archivos solo se actualizó al nuevo contrato, sin tests nuevos), suite
+completa en verde dos veces seguidas tras las correcciones. Servidor real arrancado contra una
+base de datos temporal recién migrada (`scripts/inicializar_db.py`, cadena 0001→0002 verificada): `GET /salud`
+y `GET /documentos` responden 200 sin token; `POST /chat`, `GET /usuarios/yo`, `GET /docente/estadisticas`,
+`GET /progreso/mio` responden 401 sin token; sin errores en el log de arranque. `base_vectorial/` quedó con
+cambios binarios (reordenamiento, mismo tamaño) por abrir Chroma durante la prueba; descartados con
+`git checkout` antes de seguir, conforme a la convención del proyecto.
+
+### Pendiente / limitaciones
+- `normativas_app/lib/screens/chat_screen.dart` manda ya los nombres de campo correctos pero sigue sin enviar
+  `Authorization` ni pasar por un flujo de consentimiento: una llamada real contra este backend da 401. Cablear
+  Firebase en el lado Flutter queda fuera de este encargo (era "preparar el backend").
+  `pruebas/evaluar_tutor.py`, `backend/scripts/bateria_tutor.py` y `backend/scripts/evaluar_pertinencia.py`
+  tienen la misma limitación preexistente (HTTP real sin token); solo `prueba_concurrencia.py` y
+  `evaluar_adaptacion.py` la evitan con una sustitución de dependencia en proceso.
+- No se encontró el repositorio `normativas-app-upec` ni su README en esta máquina (ver nota al inicio).
+- `configuracion/lecciones.json` tiene 5 lecciones de ejemplo; mantenerlo actualizado es trabajo de quien
+  mantenga la app, no algo que este backend pueda validar más allá de que el `tema_id` exista en el sílabo.
+
+
+## 2026-09-29 — Identidad (Firebase), base de datos relacional, cola de generación y estadísticas docentes
+
+### Qué se implementó
+- **Base de datos**: migración de SQLite-blob a SQLAlchemy + Alembic (`app/db/`: `base.py`, `models.py`,
+  `session.py`; migraciones en `backend/alembic/`, inicial en `alembic/versions/0001_esquema_inicial.py`).
+  Cinco tablas: `usuarios`, `perfiles` (el perfil adaptativo en JSON, con FK a usuarios), `conversaciones` /
+  `mensajes` (historial real del chat, antes solo en RAM), `eventos_perfil` (cada cambio de nivel, con su
+  motivo). `DATABASE_URL` decide el motor: SQLite en archivo por defecto (`servidor/tutor.db`), PostgreSQL con
+  `postgresql+pg8000://...` para un despliegue real. Driver `pg8000` (puro Python) en vez de `psycopg2`: en esta
+  máquina, la misma directiva de Control de aplicaciones que bloqueaba `grpc` (ver la entrada de más abajo)
+  también bloquea el binario nativo de psycopg2; `pg8000` evita el problema de raíz. SQLite activa
+  `PRAGMA foreign_keys=ON` por conexión (SQLAlchemy event listener), para que las claves foráneas se exijan
+  igual que en PostgreSQL y un perfil o una conversación huérfanos fallen en desarrollo, no solo en producción.
+  `services/perfil_service.py` reescrito sobre SQLAlchemy (mismo API público); nuevo `services/historial_service.py`
+  para conversaciones/mensajes; el ritmo del perfil (mensajes por sesión, duración) ahora se calcula de esas
+  tablas en vez de duplicarlo.
+- **Identidad con Firebase Authentication** (`core/firebase_auth.py`, `api/deps.py`): nunca se guarda una
+  contraseña. `usuario_actual` verifica `Authorization: Bearer <id_token>` y crea el usuario (rol `estudiante`)
+  la primera vez; `usuario_con_consentimiento` además exige `consentimiento_aceptado` (409 si falta, con
+  `POST /usuarios/consentimiento` para aceptarlo); `requiere_rol(...)` para docente/admin.
+  `verificar_token` es sustituible en pruebas (`tests/test_auth.py`), sin credenciales reales.
+- **`user_id` deja de ser un parámetro libre**: `ChatRequest` ya no tiene `user_id` (sale de
+  `usuario.uid_firebase`, del token verificado); `/perfil/{uid}` exige ser ese estudiante o rol docente/admin
+  (`verificar_propietario`, con pruebas explícitas de que un estudiante no puede leer el perfil de otro).
+- **Cola de generación** (`services/cola_service.py`, `asyncio.Semaphore`, no `threading.Semaphore`: esperar un
+  cupo no debe ocupar un hilo del threadpool de Starlette, limitado a 40 por defecto — ver el docstring del
+  módulo para las 4 decisiones de diseño, incluida por qué los aciertos de caché nunca pasan por la cola
+  -`RAGService.probar_cache`, nuevo- y por qué las llamadas cortas del turno -clasificar, reformular, redirigir-
+  sí van dentro del mismo cupo que la generación). `ESPERA_MAXIMA_COLA_S` con `asyncio.wait_for`: pasado ese
+  tiempo, 503 en vez de una conexión colgada. `GET /cola/estado` para sondear en vivo.
+- **`GET /docente/estadisticas`**: estudiantes activos, preguntas por unidad, temas con más dificultad,
+  evolución media del nivel por unidad — agregados sobre `usuarios`/`mensajes`/`perfiles`, nunca datos de un
+  estudiante concreto.
+- **Precalentamiento del caché**: `pruebas/precalentar_cache.py` + `configuracion/preguntas_frecuentes.json`
+  (editable, por unidad del sílabo); corre en proceso, sin HTTP ni credenciales.
+- `.env.example`, `.gitignore` ampliado (`.env`, `tutor.db`, credenciales de Firebase, `google-services.json`);
+  `servidor/backend/.env` (vacío, ya no aportaba nada) se dejó de versionar.
+
+### Bloqueador de entorno encontrado y corregido (van dos en el proyecto)
+Igual que `grpc`/chromadb (ver la entrada de más abajo), `psycopg2` tiene un binario nativo que esta máquina
+bloquea. Resuelto de raíz usando `pg8000` (driver de PostgreSQL puro Python) en vez de trabajar alrededor del
+bloqueo.
+
+### Prueba de concurrencia real (`reportes/prueba_concurrencia.md`)
+`backend/scripts/prueba_concurrencia.py`, contra el RAG y `llama3.2` reales, en proceso (sin credenciales de
+Firebase: `usuario_actual` sustituido por un estudiante de prueba ya consentido). Primera corrida: los niveles
+de 20 y 40 fallaron en más de la mitad de las peticiones con `RuntimeError: ... is bound to a different event
+loop` — bug real, pero del guion de prueba (llamaba `asyncio.run()` una vez por nivel, y la cola es un
+singleton de módulo con primitivas de asyncio atadas al primer event loop que las usa), no del servidor: un
+proceso de uvicorn real corre un único event loop toda su vida. Corregido envolviendo los tres niveles en un
+solo `asyncio.run()`. Corrida ya corregida: **10, 20 y 40 peticiones simultáneas, 100 % HTTP 200, cero errores,
+cero tiempos de espera agotados**, con `LIMITE_GENERACIONES_SIMULTANEAS=2` y `ESPERA_MAXIMA_COLA_S=90`; con 40
+peticiones a la vez la espera máxima observada (72,6 s) ya se acerca al tope de 90 s — margen a vigilar si
+crece la concurrencia real.
+
+### Verificación realizada
+601 tests (539 anteriores + 62 nuevos: `test_auth.py`, `test_cola.py`, `test_docente.py`, `test_historial.py`,
+`test_usuarios.py`, más los existentes actualizados a la nueva base y a exigir autenticación). Servidor real
+arrancado (copia de índice/caché/base de datos): `POST /chat`, `GET /usuarios/yo` y `GET /docente/estadisticas`
+responden 401 sin token con un mensaje claro (incluido el caso sin `FIREBASE_CREDENTIALS_PATH` configurado);
+`GET /documentos` y `GET /cola/estado` (públicos) responden 200; sin errores en el log del servidor.
+
+### Pendiente / limitaciones
+- Sin credenciales reales de Firebase en este entorno: la verificación de tokens se probó con
+  `verificar_token` sustituido (pruebas y guion de carga), nunca contra el servicio real. Falta probarlo con
+  un proyecto de Firebase real y el flujo completo desde Flutter.
+- La app Flutter todavía no manda `Authorization: Bearer <id_token>` ni pantalla de consentimiento: hasta que
+  se cablee, no puede usar ningún endpoint protegido.
+- `GET /docente/estadisticas` lee todos los perfiles en Python para agregar `temas_con_dificultad` y
+  `nivel_por_unidad` (JSON, no columnas): para un curso normal es rápido y simple; con miles de estudiantes
+  convendría una consulta SQL sobre JSON (JSONB en PostgreSQL) en vez de traer todas las filas.
+- La prueba de concurrencia midió un único valor de `LIMITE_GENERACIONES_SIMULTANEAS` (2, el de por defecto);
+  no determina cuál es el límite óptimo para un hardware distinto.
+
 ## 2026-09-29 — Atribución cruzada entre normas: modelo mayor, atribución por oración y dos bugs conocidos (en curso)
 
 ### Qué se implementó

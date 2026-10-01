@@ -339,10 +339,10 @@
                 const res = await fetch('/api/v1/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text, conversation_id: conversationId() })
+                    body: JSON.stringify({ mensaje: text, conversacion_id: conversationId() })
                 });
                 const data = await res.json();
-                addMessage('assistant', data.response || 'Sin respuesta');
+                addMessage('assistant', data.respuesta || 'Sin respuesta');
             } catch (err) {
                 addMessage('assistant', 'Error de conexión con el servidor.');
             } finally {
