@@ -1,5 +1,36 @@
 # BITÁCORA
 
+## 2026-10-06 — app/: applicationId propio, limpieza de código muerto y dependencias de Firebase (`app` f11a36a)
+
+### Qué se hizo
+- `applicationId`/bundle id `com.example.normativas_app` → `ec.edu.upec.tutornormativas` (Android
+  `build.gradle.kts` + paquete de `MainActivity.kt`, iOS, y también macOS/Linux por coherencia). El
+  `AndroidManifest.xml` no tenía nada que cambiar (usa `.MainActivity` relativo al `namespace`). Verificado:
+  `flutter build apk --debug` OK y `aapt2 dump badging` muestra `package: name='ec.edu.upec.tutornormativas'`.
+- Eliminados `iso_roadmap_screen.dart`, `duolingo_level_node.dart`, `models/normativa.dart` (y el parámetro
+  `normativa` de `ChatScreen`), la ruta con nombre "home" (`MaterialApp` usa `home: LoginScreen()`).
+- `test/widget_test.dart`: 2 pruebas reales (arranque en login, validación del formulario).
+- `withOpacity` → `withValues(alpha: …)` en todo `lib/`; imports `../../` de login/registro → `../`.
+- `avatar.glb` quitado del repo junto con `model_viewer_plus`: era una malla estática (sin esqueleto ni
+  animaciones), ~15 MB de geometría + 3 texturas PNG (~12 MB); no servía como avatar animado ni podía entregarse
+  así. Recuperable desde `fb4a6dd` si la RA lo necesitara (optimizado: Draco/meshopt + texturas KTX2/WebP).
+- Dependencias: `firebase_core ^4.15.0`, `firebase_auth ^6.7.0`, `google_sign_in ^7.2.0`,
+  `shared_preferences ^2.5.6`.
+- `flutter analyze`: "No issues found!". `flutter test`: 2/2.
+
+### Archivos tocados (app/)
+- `android/app/build.gradle.kts`, `android/app/src/main/kotlin/ec/edu/upec/tutornormativas/MainActivity.kt`,
+  `ios/Runner.xcodeproj/project.pbxproj`, `macos/...`, `linux/CMakeLists.txt`, `lib/**` (14 archivos),
+  `test/widget_test.dart`, `pubspec.yaml`, `pubspec.lock`, registrantes de plugins generados.
+
+### Pendiente / siguiente paso
+- **Push rechazado (403)**: `Sebastian-Paucar-R` no tiene permiso de escritura en `V-Erik/normativas_app`.
+  El commit `f11a36a` está solo en local hasta que V-Erik dé acceso de colaborador (o se decida otro remoto).
+- `flutter pub` avisa que los plugins requieren symlinks: activar el Modo de desarrollador de Windows
+  (`start ms-settings:developers`) para compilar la app de escritorio Windows. No bloqueó analyze/test/APK.
+- Siguiente: proyecto Firebase con `flutterfire configure` para `ec.edu.upec.tutornormativas` (el mismo
+  proyecto que usa el backend), y luego `api_client`/`chat_service` con el contrato de CLAUDE.md.
+
 ## 2026-10-06 — Orden de repositorios: copia vieja del frontend archivada, CLAUDE.md con la estructura real
 
 ### Qué se hizo
