@@ -1,5 +1,25 @@
 # BITÁCORA
 
+## 2026-10-06 — Inventario real de la app Flutter (`app/ESTADO_REAL.md`)
+
+### Qué se hizo
+- Inventario leyendo cada archivo de `app/lib/`, Android y tests, más `flutter analyze` y `flutter build web`.
+  Sin cambios de código. Hallazgos principales: login/registro simulados (`Future.delayed`); 4 mundos (normas
+  25010/12207/27001/33001, no las unidades del sílabo) con 17 niveles sin contenido y sin pantalla de lección;
+  no existen `chat_service.dart` ni `progreso_service.dart`; el chat apunta a `10.0.2.2:5000/api/chat` y envía
+  `message` (incompatible con `/api/v1/chat` y sin token); AR = lector QR + Lottie 2D remoto (`avatar.glb` de
+  27 MB y `model_viewer_plus` sin usar); `applicationId = com.example.normativas_app`, minSdk = 24 (default de
+  Flutter 3.44.8); analyze: 4 errores (`iso_roadmap_screen.dart` muerto, `test/widget_test.dart` de plantilla).
+- Ojo: `PROYECTO/normativas_app/` es una copia antigua; `CLAUDE.md` la describe a ella, no a `app/`.
+
+### Archivos tocados
+- `app/ESTADO_REAL.md` (nuevo), `BITACORA.md`.
+
+### Pendiente / siguiente paso
+- La lista "Lo que falta…" al final de `app/ESTADO_REAL.md` (Firebase Auth en la app, cliente HTTP con token,
+  consentimiento, contrato de `/chat`, lecciones con ids de `lecciones.json`, progreso vía `/progreso/*`).
+  Siguiente paso sugerido: `applicationId` propio + Firebase en la app, luego `api_client.dart`/`chat_service.dart`.
+
 ## 2026-09-30 — Integración con la app Flutter: contrato de /chat en español, lecciones, progreso (XP/racha), salud y Postman
 
 No se encontró ningún repositorio ni README de `normativas-app-upec` en esta máquina (búsqueda exhaustiva en
