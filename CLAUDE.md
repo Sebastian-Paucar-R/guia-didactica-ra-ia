@@ -4,12 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-"Guía Didáctica Interactiva de Realidad Aumentada con IA para Normativas de Ingeniería de Software" (Spanish-language project; docs, prompts and UI text are in Spanish). The git root is `PROYECTO/` and holds two independent pieces:
+"Guía Didáctica Interactiva de Realidad Aumentada con IA para Normativas de Ingeniería de Software" (Spanish-language project; docs, prompts and UI text are in Spanish). `PROYECTO/` holds two pieces that live in **two separate git repositories**:
 
-- `servidor/` — FastAPI backend: a RAG "Tutor IA" that answers questions about ISO/IEC standards (9001, 12207, 20000, 25010, 27001, 27002, 29110, 31000, 33000, 42010) from Markdown documents, using a local Ollama LLM.
-- `normativas_app/` — Flutter client (chat, home, profile, AR scanner screens). Its chat screen POSTs to `http://127.0.0.1:8000/api/v1/chat` (hard-coded in `lib/screens/chat_screen.dart`; an Android emulator would need `10.0.2.2` instead).
+| Folder | What | Git repository | Remote |
+|---|---|---|---|
+| `PROYECTO/` (root) → `servidor/` | FastAPI backend: a RAG "Tutor IA" that answers questions about ISO/IEC standards (9001, 12207, 20000, 25010, 27001, 27002, 29110, 31000, 33000, 42010) from Markdown documents, using a local Ollama LLM. Also `CLAUDE.md`, `BITACORA.md`. | root repo, branch `main` | `https://github.com/Sebastian-Paucar-R/guia-didactica-ra-ia.git` |
+| `PROYECTO/app/` | **The current Flutter frontend** (login/register, 4 "worlds", chat, AR scanner, profile). | its own repo (nested, not a submodule), branch `main` | `https://github.com/V-Erik/normativas_app.git` (a teammate's repo) |
 
-The backend has a pytest suite (`servidor/backend/tests/`, run `python -m pytest` from `servidor/backend/`; it uses fake embeddings and temp dirs, so it never touches the real `documentacion/` or `base_vectorial/`). There is no linter config or CI. The Flutter app is still mostly the default project scaffold (its README is the stock template).
+- The root `.gitignore` ignores `app/` so the two histories never mix: run git for the frontend from `app/` (or `git -C app ...`), for everything else from `PROYECTO/`. A change that spans both (e.g. a contract change) is **two commits, one per repo**.
+- `_ARCHIVO_normativas_app_vieja/` is an **older, superseded copy** of the frontend (it used to be `normativas_app/` and was tracked in the root repo until 2026-10-06; it is git-ignored now and kept on disk only until someone confirms it can be deleted). Do not edit it or take it as a reference. The only things it had that `app/` lacks were a chat screen already wired to the Spanish `/api/v1/chat` contract (see "API contract (summary)" below), `withValues` instead of the deprecated `withOpacity` in 3 files, and the template test calling `NormativasApp`; none is a feature, all are trivial to redo.
+- Other leftovers, not used: `PROYECTO/backend/app/core/config.py` (stray copy, tracked), `PROYECTO/documentacion_md/` and `servidor/documentacion_md/` (old copies of the standards).
+
+The backend has a pytest suite (`servidor/backend/tests/`, run `python -m pytest` from `servidor/backend/`; it uses fake embeddings and temp dirs, so it never touches the real `documentacion/` or `base_vectorial/`). There is no linter config or CI. The frontend's real state is in "Frontend (`app/`)" below.
+
+## Bitácora (`BITACORA.md`)
+
+There is **one** bitácora for the whole project: `PROYECTO/BITACORA.md`, versioned in the **root repo** (`guia-didactica-ra-ia`), newest entry first — including entries about work done in `app/`. Reasons: it is a single chronological log of the project (a backend change and the app change that consumes it belong in the same entry); it lives next to this `CLAUDE.md`, which is also in the root repo; and `app/`'s remote belongs to a teammate, so our session log should not be pushed into their history. Rule: an entry about `app/` names the `app/` commit hash(es) it refers to, and the bitácora commit goes to the root repo. Do not create a second `BITACORA.md` inside `app/`; frontend reference docs (like `app/ESTADO_REAL.md`) do belong in `app/`.
 
 ## Running the backend
 
@@ -29,7 +39,48 @@ Paths (`documentacion/`, `base_vectorial/`) are resolved from the location of `a
 
 When running the server with stdout redirected on Windows (e.g. from a script), set `PYTHONUTF8=1`: `chat.py` prints a `→` that raises `UnicodeEncodeError` under cp1252 (a real console is fine).
 
-Flutter app (from `normativas_app/`): `flutter pub get`, `flutter run`, `flutter analyze`, `flutter test`.
+Flutter app (from `app/`): `flutter pub get`, `flutter run`, `flutter analyze`, `flutter test`, `flutter build web`.
+
+## Frontend (`app/`)
+
+Full, file-by-file inventory with evidence: `app/ESTADO_REAL.md` (2026-10-06) — read it before working on the app. Summary:
+
+- `lib/` = `main.dart` + `models/` (3) + `screens/` (9) + `theme/` + `widgets/` (9). No `services/`, no state management, no Firebase, no `shared_preferences`. Deps: `http`, `lottie`, `mobile_scanner`, `model_viewer_plus` (unused).
+- Navigation: `/login` → `LoginScreen` ⇄ `RegisterScreen` → `MainScaffold` (4 tabs: `HomeScreen`, `ChatScreen`, `ArScannerScreen`, `ProfileScreen`) → `IsoLevelScreen`. Dead code: `IsoRoadmapScreen` (doesn't compile), `DuolingoLevelNode`, `Normativa` model, route `/home`.
+- Everything is mock data: login/register are a `Future.delayed`; the 4 worlds are 4 norms (25010, 12207, 27001, 33001 — not the 4 syllabus units) with 17 levels that are only an icon + a hard-coded state, no lesson content and no lesson screen; user name, streak, XP and medals are literals. No progress is stored anywhere.
+- **Chat does not match the backend**: `lib/screens/chat_screen.dart` POSTs `{message, normativa}` to `http://10.0.2.2:5000/api/chat` and reads `reply`/`response`, no `Authorization`, no `conversacion_id`, 20 s timeout. See the contract below for what it must send.
+- AR = `mobile_scanner` QR reader + a remote 2D Lottie overlay; `assets/models/avatar.glb` (27 MB) is bundled but unused.
+- Android: `applicationId = "com.example.normativas_app"` (template), `minSdk = flutter.minSdkVersion` (24 with Flutter 3.44.8), release signed with debug keys, `usesCleartextTraffic="true"`.
+- `flutter analyze`: 4 errors (3 in dead `iso_roadmap_screen.dart`, 1 in the template `test/widget_test.dart` → `flutter test` fails) + 32 `withOpacity` deprecation infos. `flutter build web` succeeds (the broken screen is unreachable).
+
+## API contract (summary)
+
+Full contract: `servidor/docs/contrato_api.md` (source of truth, kept in sync with `chat.py`'s `ChatRequest`/`ChatResponse`); Postman: `servidor/docs/tutor_ia.postman_collection.json`. Field names are Spanish and exact.
+
+- **Base URL** (dev): `http://127.0.0.1:8000`; Android emulator `http://10.0.2.2:8000`; physical device: the PC's LAN IP. All routes under `/api/v1`. Not 5000, not `/api/chat`.
+- **Auth**: every route except `GET /salud` and `GET /cola/estado` needs `Authorization: Bearer <Firebase id_token>` (same Firebase project as the backend's `FIREBASE_CREDENTIALS_PATH`). The backend creates the user (role `estudiante`, consent false) the first time it sees a uid; never send a `user_id`/`uid` in a body. Errors: 401 missing/invalid token · 403 wrong role or someone else's data · 409 consent not accepted (chat only).
+- **App start-up flow**: Firebase sign-in → `GET /salud` → `GET /usuarios/yo` → if `consentimiento_aceptado == false`, `POST /usuarios/consentimiento` (no body) → chat.
+
+| Method & path | Request | Response (main fields) |
+|---|---|---|
+| `GET /salud` (public) | — | `{estado: "ok"\|"degradado", modelo, ollama_disponible, documentos_indexados, chunks_indexados}` |
+| `GET /cola/estado` (public) | — | `{limite, generando, en_espera, tiempo_medio_generacion_s, espera_maxima_s}` |
+| `GET /usuarios/yo` | — | `{uid, correo, nombre, foto_url, proveedor, rol: estudiante\|docente\|admin, fecha_registro, ultimo_acceso, consentimiento_aceptado, consentimiento_fecha}` |
+| `POST /usuarios/consentimiento` | no body | same as `/usuarios/yo`, consent true |
+| `POST /chat` | `{mensaje: str (required), conversacion_id?: str≤100, leccion_id?: str≤100}` | `{respuesta, tipo, conversacion_id, desde_cache, latencia_ms, tema_detectado, unidad_detectada, tema_id_detectado, metodo_deteccion, adaptacion, posicion_en_cola, espera_estimada_s, espera_real_s}` |
+| `GET /progreso/mio` | — | `{xp_total, racha_actual, racha_mejor, ultima_actividad_fecha, lecciones_completadas, ejercicios_resueltos, ejercicios_correctos}` (zeros if no activity) |
+| `POST /progreso/lecciones/{leccion_id}/completar` | no body | updated progress (same shape). +20 XP |
+| `POST /progreso/ejercicios/{ejercicio_id}/resolver` | `{correcto: bool (required), leccion_id?: str}` | updated progress. +10 XP correct / +2 incorrect |
+| `GET /historial/conversaciones` | — | `[{id, titulo, fecha_inicio, fecha_ultimo_mensaje}]` newest first |
+| `GET /historial/conversaciones/{id}/mensajes` | — | `[{rol: estudiante\|tutor, contenido, tipo, fecha}]`; 404 if not yours |
+| `GET /perfil/{uid}`, `GET /perfil/{uid}/progreso`, `POST /perfil/{uid}/reiniciar` | own uid only (403) | adaptive profile / level per unit over time (estimated by the tutor, not the app's XP) |
+
+`/chat` details the client must handle:
+- `conversacion_id`: omit it on the first message, store the one returned, resend it for the rest of the thread (that's the tutor's memory; it lives in server RAM).
+- `leccion_id`: send it when the chat is opened from a lesson; must equal a key in `servidor/configuracion/lecciones.json` (e.g. `leccion-iso-9001`, `leccion-iso-25010`) to have an effect — unknown ids are ignored, not an error. Progress endpoints accept any `leccion_id`.
+- `tipo` ∈ `saludo | funcionamiento | sin_documentos | respuesta | sin_contexto | redireccion | error`; `error` still comes with HTTP 200 (text in `respuesta`).
+- `adaptacion` = `{nivel: bajo|medio|alto, profundidad: breve|media|extensa, estilo: conceptual|ejemplos|comparativo, dificultad: bool, segmento: str, referencias: [{tema_id, tema, unidad}]}` or null.
+- `posicion_en_cola`/`espera_estimada_s`: show "waiting in line" when non-null. Errors: 422 (missing `mensaje`, ids > 100 chars), **503 when the queue wait passes 90 s** (retry later). A generation takes ~10–13 s, plus queue wait: client timeout must be ≥ 120 s.
 
 ## Backend architecture
 
@@ -95,7 +146,7 @@ internal tooling — `pruebas/evaluar_tutor.py`, the pertinencia audit — that 
 for redirects, greetings and questions about the tutor) (`posicion_en_cola`/`espera_estimada_s`/`espera_real_s`
 come from the generation queue's `Espera`, see "Identity, database and generation queue"; all three null when the
 request passed straight through or was served from cache) — if the client sends no id the server creates one and
-returns it; the HTML page and the Flutter chat screen store and resend it; `tipo` is one of `saludo |
+returns it; the HTML page stores and resends it (the Flutter app doesn't yet — see "Frontend (`app/`)"); `tipo` is one of `saludo |
 funcionamiento | sin_documentos | respuesta | sin_contexto | redireccion | error`):
 
 1. **Greeting shortcut** — if the lowercased question is exactly one of a short list (`hola`, `buenas`, `buenos días`, `buenas tardes`, `hey`, `hi`, `hoola`) a fixed welcome message is returned with no retrieval or LLM call (`tipo: saludo`). This is the only canned reply.
@@ -149,9 +200,9 @@ Ingestion is incremental and only reads `documentacion/markdown/*.md` (see "Docu
 
 ## Identity, database and generation queue
 
-Everything in this section was added to prepare the backend for the Flutter app (`normativas_app/`; no
-`normativas-app-upec` repo or README was found anywhere on this machine when this was written, so the contract
-below comes from the literal integration request, documented in full in `servidor/docs/contrato_api.md`).
+Everything in this section was added to prepare the backend for the Flutter app (`app/`; when this was written
+the app's repo wasn't known, so the contract below comes from the literal integration request, documented in full
+in `servidor/docs/contrato_api.md` and summarized in "API contract (summary)" above).
 
 - **Firebase Authentication** (`core/firebase_auth.py`, `api/deps.py`) is identity only — no password is ever
   stored in this project. Every endpoint except `GET /api/v1/salud` and `GET /api/v1/cola/estado` requires
@@ -242,9 +293,9 @@ below comes from the literal integration request, documented in full in `servido
   `servidor/docs/tutor_ia.postman_collection.json` is a matching Postman v2.1 collection (collection-level bearer
   auth via an `id_token` variable, `/salud` overridden to `noauth`). Keep both in sync with `chat.py`'s
   `ChatRequest`/`ChatResponse` if the contract changes again.
-- **Known gap**: `normativas_app/lib/screens/chat_screen.dart` sends the right field names now (`mensaje`,
-  `conversacion_id`) but still never sends `Authorization` or runs a consent flow, so a real call against this
-  backend 401s — the scaffold predates Firebase being wired into the Flutter side. Evaluation scripts that hit
+- **Known gap**: the current app (`app/lib/screens/chat_screen.dart`) still uses the old contract (`message` to
+  `:5000/api/chat`, see "Frontend (`app/`)"), sends no `Authorization` and has no consent flow, so it cannot call
+  this backend at all yet (the 2026-09-30 field-name fix went into the old copy, now archived). Evaluation scripts that hit
   `/chat` over real HTTP without a token (`pruebas/evaluar_tutor.py`, `backend/scripts/bateria_tutor.py`,
   `backend/scripts/evaluar_pertinencia.py`) have the same pre-existing gap — only `prueba_concurrencia.py` and
   `pruebas/evaluar_adaptacion.py` work around it with an in-process dependency override.
@@ -315,7 +366,7 @@ Source: official syllabus PDF `7mo-NormativasSoftware-A-signed.pdf` (Universidad
 - `base_vectorial/` is committed to git, so a rebuild shows up as binary changes. `servidor/documentacion_md/` (and `PROYECTO/documentacion_md/`) hold older copies of the standards and are not used; `servidor/backend/documentacion/` is empty.
 - The small local LLM (`llama3.2`) can invent details even when the retrieved context is correct (e.g. it listed made-up clause names for ISO 9001 while the context had the real list) — this is prompt/model quality, not retrieval.
 - `servidor/setup_backend.sh` is the original scaffolding script (generates a much simpler backend); the code has since diverged, so don't re-run it.
-- `__pycache__/*.pyc` files and `backend/.env` are tracked in git, and there is no root `.gitignore`. Anything that opens `base_vectorial/` with Chroma (server, audit script) modifies its binaries: use a copy (see "Evaluation and coverage") and commit only the files you meant to.
+- Only `servidor/backend/.env.example` is tracked (not `.env`, not `__pycache__`); the root `.gitignore` only ignores `app/` and `_ARCHIVO_normativas_app_vieja/` (`servidor/.gitignore` covers the DBs). Anything that opens `base_vectorial/` with Chroma (server, audit script) modifies its binaries: use a copy (see "Evaluation and coverage") and commit only the files you meant to.
 - `servidor/perfiles.db` (student profiles) is git-ignored like the cache DB. Running the real server without `PERFIL_DB_PATH` writes profiles there; evaluations should point both `CACHE_DB_PATH` and `PERFIL_DB_PATH` at new files.
 
 ## Reglas de trabajo autónomo
@@ -326,7 +377,10 @@ Source: official syllabus PDF `7mo-NormativasSoftware-A-signed.pdf` (Universidad
 - Nunca hagas push ni cambies de rama sin autorización explícita.
 - Antes de dar por terminada una tarea, verifica que el servidor
   arranca sin errores.
-- Al finalizar cada avance, actualiza BITACORA.md con: qué se
+- Commits en el repositorio que corresponda: `app/` tiene su propio repo
+  (ver "Project"); nunca mezclar cambios de ambos en un commit.
+- Al finalizar cada avance, actualiza `PROYECTO/BITACORA.md` (repo raíz,
+  ver "Bitácora", también para trabajo en `app/`) con: qué se
   implementó, qué archivos se tocaron, qué quedó pendiente y
   cuál es el siguiente paso.
 - Si el contexto se está agotando, actualiza BITACORA.md antes

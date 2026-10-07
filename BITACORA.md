@@ -1,5 +1,31 @@
 # BITÁCORA
 
+## 2026-10-06 — Orden de repositorios: copia vieja del frontend archivada, CLAUDE.md con la estructura real
+
+### Qué se hizo
+- Comparadas `normativas_app/` y `app/`: la copia vieja no tiene ninguna funcionalidad que falte en `app/`
+  (solo `stat_chip.dart`, de un diseño de inicio ya reemplazado). Sí tenía 3 arreglos triviales que `app/` no:
+  el chat ya cableado al contrato en español de `/api/v1/chat` (`mensaje`, `conversacion_id`, `respuesta`,
+  `127.0.0.1:8000`; hecho en `afcc6d1`), `withValues` en 3 archivos y el test de plantilla con `NormativasApp`.
+  Se juzgó que no justifican mantenerla: el contrato queda documentado en CLAUDE.md y en git (historial del repo
+  raíz) sigue todo.
+- Renombrada a `_ARCHIVO_normativas_app_vieja/` (no borrada), sacada del índice del repo raíz
+  (`git rm -r --cached`, 141 archivos) y añadida a un `.gitignore` raíz nuevo, junto con `app/` (repo aparte).
+- CLAUDE.md: tabla de los dos repos con sus remotos (`Sebastian-Paucar-R/guia-didactica-ra-ia` y
+  `V-Erik/normativas_app`), secciones nuevas "Bitácora", "Frontend (`app/`)" y "API contract (summary)";
+  corregidas las referencias a `normativas_app/` y dos gotchas desactualizados (`.env`/`__pycache__` ya no se
+  versionan).
+- Decisión: una sola bitácora, `PROYECTO/BITACORA.md` en el repo raíz, también para el trabajo en `app/`
+  (citando el hash del commit de `app/`). El remoto de `app/` es de un compañero.
+
+### Archivos tocados
+- `CLAUDE.md`, `BITACORA.md`, `.gitignore` (nuevo); `normativas_app/` → `_ARCHIVO_normativas_app_vieja/`.
+
+### Pendiente / siguiente paso
+- Confirmar con el equipo y borrar `_ARCHIVO_normativas_app_vieja/`.
+- Los cambios en `servidor/base_vectorial/` (binarios de Chroma) siguen sin commit y no son de esta tarea.
+- Siguiente: lista de `app/ESTADO_REAL.md` (Firebase en la app, `api_client`/`chat_service` con el contrato).
+
 ## 2026-10-06 — Inventario real de la app Flutter (`app/ESTADO_REAL.md`)
 
 ### Qué se hizo
