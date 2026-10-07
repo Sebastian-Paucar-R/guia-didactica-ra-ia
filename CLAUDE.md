@@ -45,13 +45,15 @@ Flutter app (from `app/`): `flutter pub get`, `flutter run`, `flutter analyze`, 
 
 Full, file-by-file inventory with evidence: `app/ESTADO_REAL.md` (2026-10-06) — read it before working on the app. Summary:
 
-- `lib/` = `main.dart` + `models/` (3) + `screens/` (9) + `theme/` + `widgets/` (9). No `services/`, no state management, no Firebase, no `shared_preferences`. Deps: `http`, `lottie`, `mobile_scanner`, `model_viewer_plus` (unused).
-- Navigation: `/login` → `LoginScreen` ⇄ `RegisterScreen` → `MainScaffold` (4 tabs: `HomeScreen`, `ChatScreen`, `ArScannerScreen`, `ProfileScreen`) → `IsoLevelScreen`. Dead code: `IsoRoadmapScreen` (doesn't compile), `DuolingoLevelNode`, `Normativa` model, route `/home`.
+- Since `app` commit `f11a36a` (2026-10-06): dead code removed, `withOpacity` → `withValues`, `avatar.glb` + `model_viewer_plus` removed, Firebase deps added; `flutter analyze` clean, `flutter test` 2/2, debug APK builds. `ESTADO_REAL.md` is the snapshot from *before* that commit.
+- `lib/` = `main.dart` + `models/` (2) + `screens/` (8) + `theme/` + `widgets/` (8). No `services/`, no state management. Deps: `http`, `lottie`, `mobile_scanner`, `firebase_core`, `firebase_auth`, `google_sign_in`, `shared_preferences` (the last four added but **not wired yet**: no `firebase_options.dart` / `google-services.json` until `flutterfire configure` is run).
+- Navigation: `MaterialApp(home: LoginScreen)` ⇄ `RegisterScreen` → `MainScaffold` (4 tabs: `HomeScreen`, `ChatScreen`, `ArScannerScreen`, `ProfileScreen`) → `IsoLevelScreen`.
 - Everything is mock data: login/register are a `Future.delayed`; the 4 worlds are 4 norms (25010, 12207, 27001, 33001 — not the 4 syllabus units) with 17 levels that are only an icon + a hard-coded state, no lesson content and no lesson screen; user name, streak, XP and medals are literals. No progress is stored anywhere.
 - **Chat does not match the backend**: `lib/screens/chat_screen.dart` POSTs `{message, normativa}` to `http://10.0.2.2:5000/api/chat` and reads `reply`/`response`, no `Authorization`, no `conversacion_id`, 20 s timeout. See the contract below for what it must send.
-- AR = `mobile_scanner` QR reader + a remote 2D Lottie overlay; `assets/models/avatar.glb` (27 MB) is bundled but unused.
-- Android: `applicationId = "com.example.normativas_app"` (template), `minSdk = flutter.minSdkVersion` (24 with Flutter 3.44.8), release signed with debug keys, `usesCleartextTraffic="true"`.
-- `flutter analyze`: 4 errors (3 in dead `iso_roadmap_screen.dart`, 1 in the template `test/widget_test.dart` → `flutter test` fails) + 32 `withOpacity` deprecation infos. `flutter build web` succeeds (the broken screen is unreachable).
+- AR = `mobile_scanner` QR reader + a remote 2D Lottie overlay. No 3D model is bundled (the old static `avatar.glb` was removed; recover from `app` commit `fb4a6dd` if needed, but optimize it first).
+- Ids: Android `applicationId`/`namespace` and iOS/macOS bundle id = `ec.edu.upec.tutornormativas` (`MainActivity.kt` under `kotlin/ec/edu/upec/tutornormativas/`); Dart package name is still `normativas_app` (imports use `package:normativas_app/...`). `minSdk = flutter.minSdkVersion` (24 with Flutter 3.44.8; Firebase Auth needs ≥ 23), release signed with debug keys, `usesCleartextTraffic="true"`.
+- Windows host gotcha: `flutter pub get` warns "Building with plugins requires symlink support" — enable Windows Developer Mode for Windows-desktop builds; analyze/test/APK work without it.
+- Push: `Sebastian-Paucar-R` has no write access to `V-Erik/normativas_app` (403 on 2026-10-06); `app/` commits stay local until that is granted.
 
 ## API contract (summary)
 
