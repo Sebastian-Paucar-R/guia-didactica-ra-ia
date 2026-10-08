@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     # all-MiniLM-L6-v2 sobre texto en español las preguntas fuera del temario llegan hasta 0.61 y las
     # del temario bajan hasta 0.42, así que el umbral es deliberadamente alto (el LLM arbitra la zona gris).
     UMBRAL_PERTINENCIA: float = 0.62
+    # Recuperación híbrida (ver services/lexico_service.py y RAGService.recuperar): a la similitud de embeddings se
+    # le suman, por Reciprocal Rank Fusion, BM25 sobre el texto y el número de norma del título del documento. Con
+    # false, solo embeddings (como antes). No cambia el score que usa el filtro de pertinencia: ese sigue siendo la
+    # mejor similitud densa, así que UMBRAL_PERTINENCIA mantiene su calibración. Medición: reportes/calidad_recuperacion.md.
+    RECUPERACION_HIBRIDA: bool = True
+    # Modelo de embeddings (id de Hugging Face o carpeta local; ver core/embeddings.py). Cambiarlo reconstruye el
+    # índice al arrancar y obliga a recalibrar UMBRAL_PERTINENCIA, UMBRAL_RESPALDO y CACHE_UMBRAL_SIMILITUD.
+    MODELO_EMBEDDINGS: str = "sentence-transformers/all-MiniLM-L6-v2"
     MODELO_LLM: str = "llama3.2"
     # Host de Ollama (ChatOllama usa este mismo valor por defecto); GET /api/v1/salud lo consulta para saber si
     # el LLM está disponible antes de que la app deje escribir.
@@ -90,7 +98,7 @@ class Settings(BaseSettings):
     LIMITE_GENERACIONES_SIMULTANEAS: int = 2
     # Cuánto puede esperar una petición un cupo de generación antes de que el servidor le responda con un error
     # claro en vez de dejarla colgada indefinidamente (ver services/cola_service.py).
-    ESPERA_MAXIMA_COLA_S: float = 90.0
+    ESPERA_MAXIMA_COLA_S: float = 120.0
 
     class Config:
         env_file = ".env"

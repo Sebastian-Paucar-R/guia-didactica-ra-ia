@@ -9,11 +9,12 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
+
 from app.core.chroma_compat import permitir_chromadb_sin_grpc
 
 permitir_chromadb_sin_grpc()   # antes de importar chromadb: ver core/chroma_compat.py
 
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
@@ -22,11 +23,13 @@ from langchain_ollama import ChatOllama
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.core.config import settings
+from app.core.embeddings import crear_embeddings
 from app.core import lecciones
 from app.core import silabo
 from app.core.silabo import texto_silabo, ubicar_en_silabo
 from app.models.perfil import PROFUNDIDADES, PerfilEstudiante
 from app.services import adaptacion_service as adaptacion
+from app.services import lexico_service as lexico
 from app.services import pertinencia_service as pertinencia
 from app.services import tutor_service as tutor
 from app.services.cache_service import TIPOS_CACHEABLES, Acierto, CacheSemantico, intencion_de
@@ -44,6 +47,21 @@ ESTADO_OMITIDO = "omitido_sin_cambios"
 ESTADO_ERROR = "error"
 
 SALUDOS = ("hola", "buenas", "buenos días", "buenas tardes", "hey", "hi", "hoola")
+
+# Recuperación híbrida: cuántos candidatos aporta cada lista (densa, BM25) a la fusión RRF. Con ~125 fragmentos en
+# el índice, 50 cubre de sobra cualquier fragmento razonable; más no cambia el resultado y solo cuesta tiempo.
+CANDIDATOS_HIBRIDA = 50
+
+
+@dataclass
+class Recuperacion:
+    """Lo que devuelve `RAGService.recuperar`: los fragmentos a usar como contexto, cada uno con su similitud
+    coseno densa (la de siempre, 0-1), y la MEJOR similitud densa de todo el índice para esa consulta. Esa
+    segunda es la que decide el filtro de pertinencia: la fusión híbrida puede dejar fuera del contexto al
+    fragmento densamente más parecido (justo lo que se busca cuando ese fragmento es de otra norma), pero el
+    umbral se calibró sobre la similitud densa y debe seguir midiéndose igual."""
+    resultados: list[tuple[Document, float]]
+    mejor_densa: float
 
 
 @dataclass
@@ -67,13 +85,20 @@ class RAGService:
                  sincronizar_al_iniciar: bool = True, llm=None,
                  llm_clasificador=None, llm_redireccion=None, llm_reformulador=None, memoria=None,
                  cache: CacheSemantico | None = None, perfiles: PerfilService | None = None,
-                 historial: "HistorialService | None" = None):
+                 historial: "HistorialService | None" = None, modelo_embeddings: str | None = None):
         self._lock = threading.RLock()
         self.persist_dir = Path(persist_dir or settings.BASE_VECTORIAL_DIR)
         self.markdown_dir = (Path(docs_dir) / "markdown") if docs_dir else settings.MARKDOWN_DIR
-        self.embeddings = embeddings or HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        # Nombre del modelo, guardado en cada chunk (`modelo_embeddings`): sincronizar() reconstruye el índice si
+        # encuentra chunks de otro modelo. Los tres modelos comparados dan vectores de 384 dimensiones, así que un
+        # índice viejo NO fallaría al consultarlo: devolvería vecinos sin sentido en silencio. Con `embeddings`
+        # inyectados (tests) y sin `modelo_embeddings`, no se registra ni se comprueba nada.
+        if embeddings is None:
+            self.modelo_embeddings = modelo_embeddings or settings.MODELO_EMBEDDINGS
+            self.embeddings = crear_embeddings(self.modelo_embeddings)
+        else:
+            self.modelo_embeddings = modelo_embeddings
+            self.embeddings = embeddings
         # Mismo num_ctx en todas las instancias: si difiere, Ollama recarga el modelo en cada cambio,
         # y con el valor por defecto (2048) el prompt del tutor se truncaría por el principio.
         ctx = settings.NUM_CTX
@@ -111,6 +136,7 @@ class RAGService:
         self._invalidacion_pendiente: str | None = None
         silabo.cargar_silabo()   # el YAML del sílabo debe ser válido desde el arranque, no al primer mensaje
         self._vectores_temas = None   # (temas, embeddings), perezoso: ver _ubicar_por_embedding
+        self._indice_lexico = None    # (IndiceLexico, matriz de embeddings), perezoso: ver _indice_lexico_actual
         self.splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         self._abrir_vectorstore()
         if sincronizar_al_iniciar:
@@ -179,6 +205,7 @@ class RAGService:
                         "fecha_indexado": fecha,
                         "source": nombre,
                         "chunk": n,
+                        **({"modelo_embeddings": self.modelo_embeddings} if self.modelo_embeddings else {}),
                     },
                 )
                 for n, texto in enumerate(fragmentos)
@@ -224,6 +251,12 @@ class RAGService:
                 return self.reconstruir()
             if self._espacio_distancia() != "cosine":
                 print("[RAG] Store con métrica de distancia distinta de coseno: reconstruyendo una vez.")
+                return self.reconstruir()
+            if self.modelo_embeddings and any(
+                    (m or {}).get("modelo_embeddings") != self.modelo_embeddings for m in existentes["metadatas"]):
+                # Incluye los chunks indexados antes de registrar el modelo (sin la clave): se reconstruye una vez.
+                print(f"[RAG] Store con chunks de otro modelo de embeddings (o sin registrar): reconstruyendo con "
+                      f"{self.modelo_embeddings}.")
                 return self.reconstruir()
 
             en_disco = {p.name for p in self._archivos_markdown()}
@@ -288,7 +321,11 @@ class RAGService:
     def _invalidar_cache(self, motivo: str) -> None:
         """Vacía el caché semántico porque el índice cambió. No lanza (no debe romper la carga de un documento),
         pero si falla lo deja pendiente y el caché no se usa hasta lograr vaciarlo: nunca se sirve una
-        respuesta que pudo quedar desactualizada."""
+        respuesta que pudo quedar desactualizada.
+
+        También descarta el índice léxico de la recuperación híbrida: todo cambio del índice vectorial pasa por
+        aquí (ver CLAUDE.md, "Semantic cache"), así que es el único punto donde se puede quedar desfasado."""
+        self._indice_lexico = None
         if self.cache is None:
             return
         self._invalidacion_pendiente = motivo
@@ -324,6 +361,73 @@ class RAGService:
         `_flujo`) para recuperar solo dentro de un subconjunto de documentos."""
         resultados = self.vectorstore.similarity_search_with_score(pregunta, k=k, filter=filtro)
         return [(doc, 1.0 - distancia) for doc, distancia in resultados]
+
+    def _indice_lexico_actual(self):
+        """(IndiceLexico, embeddings normalizados por fila) de todos los fragmentos del índice, construido la primera
+        vez que hace falta y descartado en `_invalidar_cache` cuando el índice cambia. Los embeddings son los que
+        Chroma ya guardó (no se recalcula nada): dan la similitud densa de un fragmento que llega solo por la vía
+        léxica, para que todo fragmento del contexto lleve el mismo tipo de score."""
+        with self._lock:
+            if self._indice_lexico is None:
+                datos = self.vectorstore.get(include=["documents", "metadatas", "embeddings"])
+                titulos: dict[str, str] = {}
+                fragmentos = []
+                for id_, texto, meta in zip(datos["ids"], datos["documents"], datos["metadatas"]):
+                    nombre = (meta or {}).get("nombre_archivo", "")
+                    if nombre not in titulos:
+                        titulos[nombre] = self._titulo_documento(nombre)
+                    fragmentos.append(lexico.Fragmento(id_, texto, meta or {}, titulos[nombre]))
+                matriz = np.asarray(datos["embeddings"], dtype=float).reshape(len(fragmentos), -1)
+                normas = np.linalg.norm(matriz, axis=1, keepdims=True)
+                self._indice_lexico = (lexico.IndiceLexico(fragmentos), matriz / np.where(normas == 0, 1, normas))
+            return self._indice_lexico
+
+    def recuperar(self, pregunta: str, k: int = 4, filtro: dict | None = None) -> Recuperacion:
+        """Fragmentos de contexto para el tutor. Con RECUPERACION_HIBRIDA (por defecto) fusiona por RRF tres
+        listas: la densa de siempre, BM25 sobre título + texto, y los fragmentos del documento cuyo número de norma
+        nombra la pregunta (ver services/lexico_service.py: por qué hace falta). Cada fragmento devuelto lleva su
+        similitud densa, y `mejor_densa` es la mejor de todo el índice: el filtro de pertinencia y su umbral no
+        cambian. `filtro` es el mismo `where` de Chroma que en `buscar_con_score` (solo se entiende la forma
+        `{"nombre_archivo": {"$in": [...]}}` que usa `_flujo`; otra forma deja la recuperación solo densa)."""
+        if not settings.RECUPERACION_HIBRIDA:
+            densos = self.buscar_con_score(pregunta, k=k, filtro=filtro)
+            return Recuperacion(densos, max((s for _, s in densos), default=0.0))
+
+        vector = self.embeddings.embed_query(pregunta)
+        densos = [(doc, 1.0 - d) for doc, d in self.vectorstore.similarity_search_by_vector_with_relevance_scores(
+            vector, k=CANDIDATOS_HIBRIDA, filter=filtro)]
+        mejor = max((s for _, s in densos), default=0.0)
+        archivos = None
+        if filtro is not None:
+            permitido = (filtro.get("nombre_archivo") or {}).get("$in") if isinstance(filtro, dict) else None
+            if not isinstance(permitido, list):
+                return Recuperacion(densos[:k], mejor)
+            archivos = set(permitido)
+
+        indice, matriz = self._indice_lexico_actual()
+        if not indice.fragmentos:
+            return Recuperacion(densos[:k], mejor)
+        q = np.asarray(vector, dtype=float)
+        similitud = matriz @ (q / (np.linalg.norm(q) or 1.0))
+        por_id = {f.id: i for i, f in enumerate(indice.fragmentos)}
+        # Lista del identificador: sin orden léxico propio (todos los fragmentos del documento valen lo mismo),
+        # así que se ordenan por similitud densa para que el fragmento más pertinente de esa norma vaya primero.
+        ident = sorted(indice.por_identificador(pregunta, archivos), key=lambda i: -similitud[i])
+        listas = [[d.id for d, _ in densos],
+                  [indice.fragmentos[i].id for i in indice.bm25(pregunta, CANDIDATOS_HIBRIDA, archivos)],
+                  [indice.fragmentos[i].id for i in ident[:CANDIDATOS_HIBRIDA]]]
+        elegidos = lexico.fusion_rrf([l for l in listas if l])[:k]
+
+        densos_por_id = {d.id: (d, s) for d, s in densos}
+        resultados = []
+        for id_ in elegidos:
+            if id_ in por_id:
+                f = indice.fragmentos[por_id[id_]]
+                resultados.append((Document(id=f.id, page_content=f.texto, metadata=f.metadata),
+                                   float(similitud[por_id[id_]])))
+            else:   # el índice cambió entre la búsqueda densa y la léxica: el fragmento denso sigue siendo válido
+                resultados.append(densos_por_id[id_])
+        return Recuperacion(resultados, mejor)
 
     def get_answer(self, question: str, conversation_id: str | None = None, user_id: str | None = None,
                    leccion_id: str | None = None) -> dict:
@@ -580,6 +684,10 @@ class RAGService:
         {unidad, tema_id, tema, metodo} si la pregunta es del temario, None si se redirigió o no aplica."""
         traza: dict = {"perfil": perfil}
         resultado = self._flujo(question, turnos, traza, leccion_id)
+        if resultado.get("tipo") != "error":
+            # Aquí y no en cada generador: cubre respuesta, sin_contexto, redirección y "sobre el tutor", y lo que
+            # se guarda en el caché y en la memoria ya sale limpio.
+            resultado["response"] = tutor.ocultar_etiquetas_internas(resultado["response"])
         ubicacion = traza.get("ubicacion")
         resultado["ubicacion"] = ubicacion.como_dict() if ubicacion else None
         resultado["intencion"] = traza.get("intencion", "")
@@ -626,8 +734,10 @@ class RAGService:
         tema_leccion = lecciones.resolver_leccion(leccion_id)
         filtro_chroma = {"nombre_archivo": {"$in": list(tema_leccion.archivos)}} \
             if tema_leccion and tema_leccion.archivos else None
-        resultados = self.buscar_con_score(autonoma, filtro=filtro_chroma)
-        mejor = max((score for _, score in resultados), default=0.0)
+        recuperacion = self.recuperar(autonoma, filtro=filtro_chroma)
+        resultados = recuperacion.resultados
+        # El filtro mide la mejor similitud densa del índice, no la del contexto elegido (ver Recuperacion)
+        mejor = recuperacion.mejor_densa
         cambio_de_rol = pertinencia.es_intento_abandonar_rol(question)
 
         if insistente:
@@ -680,8 +790,9 @@ class RAGService:
             # Más material para desarrollar; con historial se ancla también en la pregunta previa del
             # estudiante, para que una reescritura imprecisa no desvíe la recuperación del tema.
             consulta = f"{turnos[-1].pregunta} {autonoma}" if turnos else autonoma
-            resultados = self.buscar_con_score(consulta, k=6)
+            resultados = self.recuperar(consulta, k=6).resultados
         _log_tutor(intencion, question, autonoma)
+        # Aquí sí, la del contexto elegido: decide si el material que verá el LLM es débil (UMBRAL_RESPALDO)
         mejor = max((score for _, score in resultados), default=0.0)
         return self._responder_con_contexto(question, autonoma, [d for d, _ in resultados], turnos, intencion, mejor,
                                             insistencia=insistente, cambio_de_rol=cambio_de_rol,
@@ -698,6 +809,9 @@ class RAGService:
     def _generar_respuesta(self, variables: dict) -> str:
         texto = (tutor.PROMPT_TUTOR | self.llm | StrOutputParser()).invoke(variables)
         texto = tutor.limpiar_etiquetas_documento(texto)
+        # Antes de las verificaciones de citas: "CONTEXTO" en mayúsculas parece una sigla, así que
+        # terminos_sin_respaldo lo marcaba, forzaba un reintento y acababa borrando la oración entera.
+        texto = tutor.ocultar_etiquetas_internas(texto)
         return tutor.recortar_a_oracion_completa(
             tutor.quitar_encabezado_colgado(tutor.limpiar_preambulo(texto)))
 

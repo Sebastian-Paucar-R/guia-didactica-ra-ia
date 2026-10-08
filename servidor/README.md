@@ -34,7 +34,7 @@ por defecto):
 | `FIREBASE_CREDENTIALS_PATH` | JSON de la cuenta de servicio de Firebase (verificar tokens) | sin configurar |
 | `MODELO_LLM` / `MODELO_CLASIFICADOR` | Modelo de Ollama para generar / para clasificar (ver `reportes/comparativa_modelos.md`) | `llama3.2` / el mismo que `MODELO_LLM` |
 | `LIMITE_GENERACIONES_SIMULTANEAS` | Cupos de la cola de generación (`services/cola_service.py`) | `2` |
-| `ESPERA_MAXIMA_COLA_S` | Tope de espera en cola antes de responder 503 | `90` |
+| `ESPERA_MAXIMA_COLA_S` | Tope de espera en cola antes de responder 503 | `120` |
 
 ### Firebase Authentication
 

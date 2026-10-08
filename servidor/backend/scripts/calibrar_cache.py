@@ -1,4 +1,4 @@
-"""Mide la similitud coseno (embeddings reales de all-MiniLM-L6-v2) entre pares de preguntas y dice si el caché
+"""Mide la similitud coseno (embeddings reales de settings.MODELO_EMBEDDINGS) entre pares de preguntas y dice si el caché
 semántico los daría por la misma pregunta con el umbral actual (CACHE_UMBRAL_SIMILITUD) y sus salvaguardas.
 
 Uso (desde servidor/backend):  python scripts/calibrar_cache.py
@@ -12,9 +12,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from langchain_community.embeddings import HuggingFaceEmbeddings  # noqa: E402
-
 from app.core.config import settings  # noqa: E402
+from app.core.embeddings import crear_embeddings  # noqa: E402
 from app.services.cache_service import huella_de, intencion_de  # noqa: E402
 
 BASE = "¿Qué es la norma ISO 25010?"
@@ -46,7 +45,8 @@ PARES = [
 
 
 def main():
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embeddings = crear_embeddings()
+    print(f"Modelo de embeddings: {settings.MODELO_EMBEDDINGS}")
     umbral = settings.CACHE_UMBRAL_SIMILITUD
     print(f"\nUmbral actual: {umbral}   (columnas: similitud | ¿pasa las salvaguardas? | ¿acierto de caché?)\n")
     resumen = {"MISMA": [0, 0], "DISTINTA": [0, 0]}      # [aciertos de caché, total]

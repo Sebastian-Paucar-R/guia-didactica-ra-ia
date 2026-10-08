@@ -1,0 +1,422 @@
+{
+  "version": 1,
+  "descripcion": "Banco de verificación de la recuperación (pruebas/evaluar_recuperacion.py). 'normas': para cada norma del sílabo con documento indexado, '¿Qué es X?' debe recuperar el documento de X entre los primeros fragmentos (criterio principal). 'variantes': otras tres formulaciones de la misma pregunta (número suelto, '¿para qué sirve?', '¿qué establece?'), para no sobreajustar a una sola redacción. 'generales': las preguntas de pruebas/banco_consultas.json cuyo tema declara documentos en configuracion/silabo.yaml (acierto = algún fragmento de esos documentos), para comprobar que la corrección no empeora preguntas que no nombran una norma.",
+  "normas": [
+    {
+      "id": "N-42010",
+      "norma": "ISO/IEC/IEEE 42010",
+      "pregunta": "¿Qué es ISO/IEC/IEEE 42010?",
+      "esperados": [
+        "ISO-IEC-IEEE_42010_Arquitectura_Software.md"
+      ]
+    },
+    {
+      "id": "N-12207",
+      "norma": "ISO/IEC 12207",
+      "pregunta": "¿Qué es ISO/IEC 12207?",
+      "esperados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ]
+    },
+    {
+      "id": "N-20000",
+      "norma": "ISO/IEC 20000",
+      "pregunta": "¿Qué es ISO/IEC 20000?",
+      "esperados": [
+        "ISO-IEC_20000_Gestion_Servicios_TI.md"
+      ]
+    },
+    {
+      "id": "N-25010",
+      "norma": "ISO/IEC 25010",
+      "pregunta": "¿Qué es ISO/IEC 25010?",
+      "esperados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ]
+    },
+    {
+      "id": "N-27001",
+      "norma": "ISO/IEC 27001",
+      "pregunta": "¿Qué es ISO/IEC 27001?",
+      "esperados": [
+        "ISO-IEC_27001_Seguridad_Informacion.md"
+      ]
+    },
+    {
+      "id": "N-27002",
+      "norma": "ISO/IEC 27002",
+      "pregunta": "¿Qué es ISO/IEC 27002?",
+      "esperados": [
+        "ISO-IEC_27002_Controles_Seguridad.md"
+      ]
+    },
+    {
+      "id": "N-29110",
+      "norma": "ISO/IEC 29110",
+      "pregunta": "¿Qué es ISO/IEC 29110?",
+      "esperados": [
+        "ISO-IEC_29110_VSE_Software.md"
+      ]
+    },
+    {
+      "id": "N-33000",
+      "norma": "ISO/IEC 33000",
+      "pregunta": "¿Qué es ISO/IEC 33000?",
+      "esperados": [
+        "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md"
+      ]
+    },
+    {
+      "id": "N-31000",
+      "norma": "ISO 31000",
+      "pregunta": "¿Qué es ISO 31000?",
+      "esperados": [
+        "ISO_31000_Gestion_Riesgo.md"
+      ]
+    },
+    {
+      "id": "N-9001",
+      "norma": "ISO 9001",
+      "pregunta": "¿Qué es ISO 9001?",
+      "esperados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ]
+    }
+  ],
+  "variantes": [
+    {
+      "id": "V-42010-1",
+      "norma": "ISO/IEC/IEEE 42010",
+      "pregunta": "¿Qué es la norma 42010?",
+      "esperados": [
+        "ISO-IEC-IEEE_42010_Arquitectura_Software.md"
+      ]
+    },
+    {
+      "id": "V-42010-2",
+      "norma": "ISO/IEC/IEEE 42010",
+      "pregunta": "¿Para qué sirve ISO/IEC/IEEE 42010?",
+      "esperados": [
+        "ISO-IEC-IEEE_42010_Arquitectura_Software.md"
+      ]
+    },
+    {
+      "id": "V-42010-3",
+      "norma": "ISO/IEC/IEEE 42010",
+      "pregunta": "¿Qué establece la ISO/IEC/IEEE 42010?",
+      "esperados": [
+        "ISO-IEC-IEEE_42010_Arquitectura_Software.md"
+      ]
+    },
+    {
+      "id": "V-12207-1",
+      "norma": "ISO/IEC 12207",
+      "pregunta": "¿Qué es la norma 12207?",
+      "esperados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ]
+    },
+    {
+      "id": "V-12207-2",
+      "norma": "ISO/IEC 12207",
+      "pregunta": "¿Para qué sirve ISO/IEC 12207?",
+      "esperados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ]
+    },
+    {
+      "id": "V-12207-3",
+      "norma": "ISO/IEC 12207",
+      "pregunta": "¿Qué establece la ISO/IEC 12207?",
+      "esperados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ]
+    },
+    {
+      "id": "V-20000-1",
+      "norma": "ISO/IEC 20000",
+      "pregunta": "¿Qué es la norma 20000?",
+      "esperados": [
+        "ISO-IEC_20000_Gestion_Servicios_TI.md"
+      ]
+    },
+    {
+      "id": "V-20000-2",
+      "norma": "ISO/IEC 20000",
+      "pregunta": "¿Para qué sirve ISO/IEC 20000?",
+      "esperados": [
+        "ISO-IEC_20000_Gestion_Servicios_TI.md"
+      ]
+    },
+    {
+      "id": "V-20000-3",
+      "norma": "ISO/IEC 20000",
+      "pregunta": "¿Qué establece la ISO/IEC 20000?",
+      "esperados": [
+        "ISO-IEC_20000_Gestion_Servicios_TI.md"
+      ]
+    },
+    {
+      "id": "V-25010-1",
+      "norma": "ISO/IEC 25010",
+      "pregunta": "¿Qué es la norma 25010?",
+      "esperados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ]
+    },
+    {
+      "id": "V-25010-2",
+      "norma": "ISO/IEC 25010",
+      "pregunta": "¿Para qué sirve ISO/IEC 25010?",
+      "esperados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ]
+    },
+    {
+      "id": "V-25010-3",
+      "norma": "ISO/IEC 25010",
+      "pregunta": "¿Qué establece la ISO/IEC 25010?",
+      "esperados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ]
+    },
+    {
+      "id": "V-27001-1",
+      "norma": "ISO/IEC 27001",
+      "pregunta": "¿Qué es la norma 27001?",
+      "esperados": [
+        "ISO-IEC_27001_Seguridad_Informacion.md"
+      ]
+    },
+    {
+      "id": "V-27001-2",
+      "norma": "ISO/IEC 27001",
+      "pregunta": "¿Para qué sirve ISO/IEC 27001?",
+      "esperados": [
+        "ISO-IEC_27001_Seguridad_Informacion.md"
+      ]
+    },
+    {
+      "id": "V-27001-3",
+      "norma": "ISO/IEC 27001",
+      "pregunta": "¿Qué establece la ISO/IEC 27001?",
+      "esperados": [
+        "ISO-IEC_27001_Seguridad_Informacion.md"
+      ]
+    },
+    {
+      "id": "V-27002-1",
+      "norma": "ISO/IEC 27002",
+      "pregunta": "¿Qué es la norma 27002?",
+      "esperados": [
+        "ISO-IEC_27002_Controles_Seguridad.md"
+      ]
+    },
+    {
+      "id": "V-27002-2",
+      "norma": "ISO/IEC 27002",
+      "pregunta": "¿Para qué sirve ISO/IEC 27002?",
+      "esperados": [
+        "ISO-IEC_27002_Controles_Seguridad.md"
+      ]
+    },
+    {
+      "id": "V-27002-3",
+      "norma": "ISO/IEC 27002",
+      "pregunta": "¿Qué establece la ISO/IEC 27002?",
+      "esperados": [
+        "ISO-IEC_27002_Controles_Seguridad.md"
+      ]
+    },
+    {
+      "id": "V-29110-1",
+      "norma": "ISO/IEC 29110",
+      "pregunta": "¿Qué es la norma 29110?",
+      "esperados": [
+        "ISO-IEC_29110_VSE_Software.md"
+      ]
+    },
+    {
+      "id": "V-29110-2",
+      "norma": "ISO/IEC 29110",
+      "pregunta": "¿Para qué sirve ISO/IEC 29110?",
+      "esperados": [
+        "ISO-IEC_29110_VSE_Software.md"
+      ]
+    },
+    {
+      "id": "V-29110-3",
+      "norma": "ISO/IEC 29110",
+      "pregunta": "¿Qué establece la ISO/IEC 29110?",
+      "esperados": [
+        "ISO-IEC_29110_VSE_Software.md"
+      ]
+    },
+    {
+      "id": "V-33000-1",
+      "norma": "ISO/IEC 33000",
+      "pregunta": "¿Qué es la norma 33000?",
+      "esperados": [
+        "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md"
+      ]
+    },
+    {
+      "id": "V-33000-2",
+      "norma": "ISO/IEC 33000",
+      "pregunta": "¿Para qué sirve ISO/IEC 33000?",
+      "esperados": [
+        "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md"
+      ]
+    },
+    {
+      "id": "V-33000-3",
+      "norma": "ISO/IEC 33000",
+      "pregunta": "¿Qué establece la ISO/IEC 33000?",
+      "esperados": [
+        "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md"
+      ]
+    },
+    {
+      "id": "V-31000-1",
+      "norma": "ISO 31000",
+      "pregunta": "¿Qué es la norma 31000?",
+      "esperados": [
+        "ISO_31000_Gestion_Riesgo.md"
+      ]
+    },
+    {
+      "id": "V-31000-2",
+      "norma": "ISO 31000",
+      "pregunta": "¿Para qué sirve ISO 31000?",
+      "esperados": [
+        "ISO_31000_Gestion_Riesgo.md"
+      ]
+    },
+    {
+      "id": "V-31000-3",
+      "norma": "ISO 31000",
+      "pregunta": "¿Qué establece la ISO 31000?",
+      "esperados": [
+        "ISO_31000_Gestion_Riesgo.md"
+      ]
+    },
+    {
+      "id": "V-9001-1",
+      "norma": "ISO 9001",
+      "pregunta": "¿Qué es la norma 9001?",
+      "esperados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ]
+    },
+    {
+      "id": "V-9001-2",
+      "norma": "ISO 9001",
+      "pregunta": "¿Para qué sirve ISO 9001?",
+      "esperados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ]
+    },
+    {
+      "id": "V-9001-3",
+      "norma": "ISO 9001",
+      "pregunta": "¿Qué establece la ISO 9001?",
+      "esperados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ]
+    }
+  ],
+  "generales": [
+    {
+      "id": "G-D06",
+      "origen": "pruebas/banco_consultas.json#D06",
+      "tema_id": "1.6",
+      "pregunta": "¿Qué fases tiene el ciclo de vida del desarrollo de software?",
+      "esperados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ]
+    },
+    {
+      "id": "G-D08",
+      "origen": "pruebas/banco_consultas.json#D08",
+      "tema_id": "1.8",
+      "pregunta": "¿Cómo ayuda el ciclo PDCA a la mejora continua de los procesos de un equipo?",
+      "esperados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ]
+    },
+    {
+      "id": "G-D11",
+      "origen": "pruebas/banco_consultas.json#D11",
+      "tema_id": "2.2",
+      "pregunta": "¿Para qué sirve la norma ISO 9001 y qué es un sistema de gestión de la calidad?",
+      "esperados": [
+        "ISO_9001_Gestion_Calidad.md"
+      ]
+    },
+    {
+      "id": "G-D13",
+      "origen": "pruebas/banco_consultas.json#D13",
+      "tema_id": "2.3",
+      "pregunta": "¿Qué procesos técnicos agrupa la ISO/IEC/IEEE 12207?",
+      "esperados": [
+        "ISO-IEC_12207_Ciclo_Vida_Software.md"
+      ]
+    },
+    {
+      "id": "G-D14",
+      "origen": "pruebas/banco_consultas.json#D14",
+      "tema_id": "2.4",
+      "pregunta": "¿Qué niveles de capacidad de proceso define ISO/IEC 33020 y cómo se relaciona con CMMI?",
+      "esperados": [
+        "ISO-IEC_33000_SPICE_Evaluacion_Procesos.md"
+      ]
+    },
+    {
+      "id": "G-D15",
+      "origen": "pruebas/banco_consultas.json#D15",
+      "tema_id": "2.5",
+      "pregunta": "¿Cuáles son las características del modelo de calidad del producto de la ISO/IEC 25010?",
+      "esperados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ]
+    },
+    {
+      "id": "G-D16",
+      "origen": "pruebas/banco_consultas.json#D16",
+      "tema_id": "2.6",
+      "pregunta": "¿Qué es un sistema de gestión de seguridad de la información según ISO/IEC 27001?",
+      "esperados": [
+        "ISO-IEC_27001_Seguridad_Informacion.md",
+        "ISO-IEC_27002_Controles_Seguridad.md"
+      ]
+    },
+    {
+      "id": "G-D18",
+      "origen": "pruebas/banco_consultas.json#D18",
+      "tema_id": "2.6",
+      "pregunta": "¿Qué medidas de privacidad debe considerar un equipo que desarrolla un software que guarda datos personales de sus usuarios?",
+      "esperados": [
+        "ISO-IEC_27001_Seguridad_Informacion.md",
+        "ISO-IEC_27002_Controles_Seguridad.md"
+      ]
+    },
+    {
+      "id": "G-D20",
+      "origen": "pruebas/banco_consultas.json#D20",
+      "tema_id": "2.5",
+      "pregunta": "¿Qué familia de normas ISO se usa para evaluar la calidad de un producto de software?",
+      "esperados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ]
+    },
+    {
+      "id": "G-D26",
+      "origen": "pruebas/banco_consultas.json#D26",
+      "tema_id": "3.3",
+      "pregunta": "¿Qué métricas de calidad del producto puedo usar, como la densidad de defectos?",
+      "esperados": [
+        "ISO-IEC_25010_Calidad_Producto_Software.md"
+      ]
+    }
+  ]
+}

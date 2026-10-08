@@ -497,6 +497,31 @@ def test_limpiar_etiquetas_documento(texto, esperado):
 
 
 @pytest.mark.parametrize("texto,esperado", [
+    # la fuga real (reportes/comparativa_modelos.md): el nombre de la variable de la plantilla en la respuesta
+    ("Según el CONTEXTO, ISO 9001 se basa en la mejora continua.",
+     "Según el material del curso, ISO 9001 se basa en la mejora continua."),
+    ("El CONTEXTO RECUPERADO no menciona cláusulas.", "El material del curso no menciona cláusulas."),
+    ("Esto sale del CONTEXTO y del contexto proporcionado.", "Esto sale del material del curso y del material del curso."),
+    ("Como vimos en la CONVERSACIÓN PREVIA, la norma...", "Como vimos en la conversación previa, la norma..."),
+    ("RECUERDA: la calidad se mide.", "La calidad se mide."),
+    # "contexto" como palabra normal del español no se toca
+    ("En el contexto de un proyecto ágil, la calidad...", "En el contexto de un proyecto ágil, la calidad..."),
+    ("Sin etiquetas internas.", "Sin etiquetas internas."),
+])
+def test_ocultar_etiquetas_internas(texto, esperado):
+    assert tutor.ocultar_etiquetas_internas(texto) == esperado
+
+
+def test_la_respuesta_final_no_deja_escapar_contexto(tutor_rag, llms):
+    """Y sin perder la oración: antes "CONTEXTO" pasaba por sigla sin respaldo, se reintentaba y se borraba."""
+    llms["llm"].respuesta = "Según el CONTEXTO, la ISO 9001 promueve la mejora continua. ¿Qué proceso mejorarías?"
+    r = tutor_rag.get_answer("¿Qué dice la ISO 9001 sobre la calidad?")
+    assert r["tipo"] == "respuesta" and "CONTEXTO" not in r["response"]
+    assert "Según el material del curso, la ISO 9001 promueve la mejora continua." in r["response"]
+    assert llms["llm"].llamadas == 1   # ningún reintento por una "sigla" que era la etiqueta del prompt
+
+
+@pytest.mark.parametrize("texto,esperado", [
     ("1. Define el alcance.\n2. Identifica riesgos.", True), ("Paso 1: define el alcance", True),
     ("Primero, define el alcance y luego lo revisamos", True), ("- define el alcance\n- revisa", True),
     ("Es importante entender qué es una auditoría. ¿Qué opinas?", False),

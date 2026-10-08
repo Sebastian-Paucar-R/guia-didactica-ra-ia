@@ -156,7 +156,11 @@ Requiere autenticación y consentimiento aceptado (409 si falta).
 |---|---|---|
 | 401 / 403 / 409 | Ver tabla de autenticación arriba. | ver arriba |
 | 422 | `mensaje` ausente, o `conversacion_id`/`leccion_id` con más de 100 caracteres. | Error estándar de validación de FastAPI (`detail`: lista de errores por campo). |
-| 503 | El tutor lleva más de `ESPERA_MAXIMA_COLA_S` (90 s por defecto) esperando un cupo de generación. | `"detail": "El tutor está saturado: más de 90 s esperando turno (posición al llegar: N). Intenta de nuevo en un momento."` |
+| 503 | El tutor lleva más de `ESPERA_MAXIMA_COLA_S` (120 s por defecto) esperando un cupo de generación. | `"detail": "El tutor está saturado: más de 120 s esperando turno (posición al llegar: N). Intenta de nuevo en un momento."` |
+
+**Timeout del cliente: al menos 150 s.** Una petición puede esperar hasta `ESPERA_MAXIMA_COLA_S` (120 s) por un
+cupo y después generar (~10-13 s con `llama3.2`); con un timeout menor el cliente corta antes de recibir la
+respuesta o el 503 que explica la saturación.
 
 ### `GET /api/v1/cola/estado`
 
@@ -167,7 +171,7 @@ pregunta).
 
 **Respuesta 200:**
 ```json
-{"limite": 2, "generando": 1, "en_espera": 0, "tiempo_medio_generacion_s": 6.42, "espera_maxima_s": 90.0}
+{"limite": 2, "generando": 1, "en_espera": 0, "tiempo_medio_generacion_s": 6.42, "espera_maxima_s": 120.0}
 ```
 
 ---
