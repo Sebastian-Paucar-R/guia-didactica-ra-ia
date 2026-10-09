@@ -36,8 +36,11 @@ from app.services.rag_service import RAGService  # noqa: E402
 CONJUNTOS = ("normas", "variantes", "generales")
 
 
-def evaluar(rag: RAGService, banco: dict, hibrida: bool, k: int = 4) -> dict:
-    settings.RECUPERACION_HIBRIDA = hibrida
+MODOS = {"densa": (False, False), "híbrida": (True, False), "híbrida + BM25 texto": (True, True)}
+
+
+def evaluar(rag: RAGService, banco: dict, modo: str, k: int = 4) -> dict:
+    settings.RECUPERACION_HIBRIDA, settings.RECUPERACION_HIBRIDA_BM25 = MODOS[modo]
     salida = {}
     for conjunto in CONJUNTOS:
         filas = []
@@ -74,11 +77,11 @@ def main() -> None:
         rag = RAGService(persist_dir=_TMP / f"bv_{len(informe['configuraciones'])}_{abs(hash(modelo))}",
                          docs_dir=settings.DOCUMENTACION_DIR, modelo_embeddings=modelo)
         print(f"\n### {modelo}  ({rag.contar_chunks()} fragmentos)")
-        for hibrida in (False, True):
-            nombre = f"{Path(modelo).name.split('__')[-1]} / {'híbrida' if hibrida else 'densa'}"
-            r = evaluar(rag, banco, hibrida)
-            informe["configuraciones"][nombre] = {"modelo": modelo, "hibrida": hibrida, **r}
-            print(f"  {'híbrida' if hibrida else 'densa  '}:", "   ".join(
+        for modo in MODOS:
+            nombre = f"{Path(modelo).name.split('__')[-1]} / {modo}"
+            r = evaluar(rag, banco, modo)
+            informe["configuraciones"][nombre] = {"modelo": modelo, "modo": modo, **r}
+            print(f"  {modo:21}:", "   ".join(
                 f"{c} @1 {r[c]['acierto_1']}/{r[c]['n']} @4 {r[c]['acierto_k']}/{r[c]['n']} "
                 f"frag {r[c]['fragmentos_correctos']}/{r[c]['fragmentos_total']}" for c in CONJUNTOS))
             for f in r["normas"]["preguntas"]:

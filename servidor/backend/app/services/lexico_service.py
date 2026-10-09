@@ -7,11 +7,14 @@ eran de 29110, 9001 (x2) y 27002 (0,71-0,72), aunque el documento de la 25010 em
 justo lo que un embedding generaliza y una búsqueda léxica no: "25010" solo aparece en ese documento.
 
 Dos señales léxicas, que se fusionan con la densa por Reciprocal Rank Fusion en `RAGService.recuperar`:
-  - BM25 sobre el texto de cada fragmento con el título de su documento delante (así todos los fragmentos de
-    la 25010 contienen "25010", no solo los que la nombran).
-  - Identificador de norma: si la consulta nombra el número de una norma (25010, 9001...) y hay un documento
-    cuyo título lo lleva, los fragmentos de ese documento entran en una lista propia (ordenados por similitud
-    densa). Una consulta sin números no genera esta lista.
+  - Identificador de norma (activa por defecto): si la consulta nombra el número de una norma (25010, 9001...) y
+    hay un documento cuyo título lo lleva, los fragmentos de ese documento entran en una lista propia (ordenados
+    por similitud densa). Una consulta sin números, o con el número de una norma sin documento propio (29119),
+    no genera esta lista y se queda con la recuperación densa de siempre.
+  - BM25 sobre el texto de cada fragmento con el título de su documento delante (RECUPERACION_HIBRIDA_BM25,
+    apagada). Recupera algo mejor en el banco, pero en la evaluación completa del tutor subió fragmentos que
+    solo mencionan un término de pasada; con eso el término cuenta como respaldado y el tutor dejó de decir "no
+    está en los documentos" (inventó los roles de Scrum). Detalle en reportes/calidad_recuperacion.md.
 
 Sin dependencias nuevas (BM25 es ~20 líneas) y todo en memoria: con ~125 fragmentos se reconstruye en
 milisegundos, y `RAGService` lo descarta cada vez que el índice cambia.

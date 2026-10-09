@@ -383,9 +383,11 @@ class RAGService:
             return self._indice_lexico
 
     def recuperar(self, pregunta: str, k: int = 4, filtro: dict | None = None) -> Recuperacion:
-        """Fragmentos de contexto para el tutor. Con RECUPERACION_HIBRIDA (por defecto) fusiona por RRF tres
-        listas: la densa de siempre, BM25 sobre título + texto, y los fragmentos del documento cuyo número de norma
-        nombra la pregunta (ver services/lexico_service.py: por qué hace falta). Cada fragmento devuelto lleva su
+        """Fragmentos de contexto para el tutor. Con RECUPERACION_HIBRIDA (por defecto) fusiona por RRF la lista
+        densa de siempre con los fragmentos del documento cuyo número de norma nombra la pregunta (y, solo con
+        RECUPERACION_HIBRIDA_BM25, BM25 sobre título + texto); ver services/lexico_service.py: por qué hace falta y
+        por qué el BM25 de texto está apagado. Una pregunta que no nombra ninguna norma con documento propio
+        recibe exactamente la recuperación densa de antes. Cada fragmento devuelto lleva su
         similitud densa, y `mejor_densa` es la mejor de todo el índice: el filtro de pertinencia y su umbral no
         cambian. `filtro` es el mismo `where` de Chroma que en `buscar_con_score` (solo se entiende la forma
         `{"nombre_archivo": {"$in": [...]}}` que usa `_flujo`; otra forma deja la recuperación solo densa)."""
@@ -413,9 +415,9 @@ class RAGService:
         # Lista del identificador: sin orden léxico propio (todos los fragmentos del documento valen lo mismo),
         # así que se ordenan por similitud densa para que el fragmento más pertinente de esa norma vaya primero.
         ident = sorted(indice.por_identificador(pregunta, archivos), key=lambda i: -similitud[i])
-        listas = [[d.id for d, _ in densos],
-                  [indice.fragmentos[i].id for i in indice.bm25(pregunta, CANDIDATOS_HIBRIDA, archivos)],
-                  [indice.fragmentos[i].id for i in ident[:CANDIDATOS_HIBRIDA]]]
+        listas = [[d.id for d, _ in densos], [indice.fragmentos[i].id for i in ident[:CANDIDATOS_HIBRIDA]]]
+        if settings.RECUPERACION_HIBRIDA_BM25:   # apagado por defecto: ver core/config.py
+            listas.append([indice.fragmentos[i].id for i in indice.bm25(pregunta, CANDIDATOS_HIBRIDA, archivos)])
         elegidos = lexico.fusion_rrf([l for l in listas if l])[:k]
 
         densos_por_id = {d.id: (d, s) for d, s in densos}

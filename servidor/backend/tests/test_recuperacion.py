@@ -119,6 +119,25 @@ def test_el_indice_lexico_se_renueva_al_indexar(rag_normas):
     assert _archivos(rag_normas.recuperar("¿Qué es ISO 31000?"))[0] == "ISO_31000_Riesgo.md"
 
 
+def test_una_norma_sin_documento_propio_no_cambia_la_recuperacion(rag_normas, monkeypatch):
+    """La 29119 solo se menciona de pasada dentro de otro documento: sin BM25 de texto (por defecto) no se fuerza
+    ese fragmento al contexto, así terminos_sin_respaldo sigue pudiendo decir que la norma no está."""
+    nuevo = rag_normas.markdown_dir / "ISO_9001_Calidad.md"
+    nuevo.write_text(nuevo.read_text(encoding="utf-8") + "\n\nVer también ISO/IEC 29119.", encoding="utf-8")
+    rag_normas.indexar_archivo(nuevo)
+    pregunta = "¿Qué establece la ISO/IEC/IEEE 29119?"
+    hibrida = _archivos(rag_normas.recuperar(pregunta))
+    monkeypatch.setattr(settings, "RECUPERACION_HIBRIDA", False)
+    assert hibrida == _archivos(rag_normas.recuperar(pregunta))
+
+
+def test_bm25_de_texto_solo_si_se_activa(rag_normas, monkeypatch):
+    pregunta = "contenido de calidad de producto"   # sin número de norma: solo BM25 puede traer la 25010
+    assert "ISO-IEC_25010_Calidad.md" not in _archivos(rag_normas.recuperar(pregunta))
+    monkeypatch.setattr(settings, "RECUPERACION_HIBRIDA_BM25", True)
+    assert "ISO-IEC_25010_Calidad.md" in _archivos(rag_normas.recuperar(pregunta))
+
+
 def test_k_mayor_para_profundizar(rag_normas):
     assert len(rag_normas.recuperar("¿Qué es ISO/IEC 25010?", k=6).resultados) == 6
 

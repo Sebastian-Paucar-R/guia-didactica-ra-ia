@@ -31,10 +31,16 @@ class Settings(BaseSettings):
     # del temario bajan hasta 0.42, así que el umbral es deliberadamente alto (el LLM arbitra la zona gris).
     UMBRAL_PERTINENCIA: float = 0.62
     # Recuperación híbrida (ver services/lexico_service.py y RAGService.recuperar): a la similitud de embeddings se
-    # le suman, por Reciprocal Rank Fusion, BM25 sobre el texto y el número de norma del título del documento. Con
-    # false, solo embeddings (como antes). No cambia el score que usa el filtro de pertinencia: ese sigue siendo la
-    # mejor similitud densa, así que UMBRAL_PERTINENCIA mantiene su calibración. Medición: reportes/calidad_recuperacion.md.
+    # le suma, por Reciprocal Rank Fusion, el número de norma del título del documento (si la pregunta nombra
+    # "25010", entran los fragmentos del documento de ISO/IEC 25010). Con false, solo embeddings (como antes). No
+    # cambia el score que usa el filtro de pertinencia: ese sigue siendo la mejor similitud densa, así que
+    # UMBRAL_PERTINENCIA mantiene su calibración. Medición: reportes/calidad_recuperacion.md.
     RECUPERACION_HIBRIDA: bool = True
+    # Tercera lista opcional: BM25 sobre el texto de cada fragmento. Apagada a propósito: mejora la recuperación en
+    # el banco, pero sube fragmentos que solo MENCIONAN un término de pasada ("Scrum" en una línea de la 12207,
+    # "29119" en la de la 25010), con lo que terminos_sin_respaldo da el término por respaldado y el tutor deja de
+    # decir "no está en los documentos": en la evaluación completa inventó los roles de Scrum. Ver el reporte.
+    RECUPERACION_HIBRIDA_BM25: bool = False
     # Modelo de embeddings (id de Hugging Face o carpeta local; ver core/embeddings.py). Cambiarlo reconstruye el
     # índice al arrancar y obliga a recalibrar UMBRAL_PERTINENCIA, UMBRAL_RESPALDO y CACHE_UMBRAL_SIMILITUD.
     MODELO_EMBEDDINGS: str = "sentence-transformers/all-MiniLM-L6-v2"
