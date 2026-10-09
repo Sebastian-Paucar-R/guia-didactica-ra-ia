@@ -1,5 +1,5 @@
 ﻿# Copia antigua del frontend, archivada (no borrar hasta confirmarlo). El frontend vigente es app/.
 _ARCHIVO_normativas_app_vieja/
 
-# app/ es un repositorio git propio (github.com/V-Erik/normativas_app); no se versiona desde aquí.
-app/
+# app/ es un repositorio git propio (github.com/V-Erik/normativas_app); no se versiona desde aquí. Anclado a la raíz (/app/): sin la barra inicial también ignoraba servidor/backend/app/.
+/app/

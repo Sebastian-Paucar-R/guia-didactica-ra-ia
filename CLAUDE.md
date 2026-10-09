@@ -82,7 +82,7 @@ Full contract: `servidor/docs/contrato_api.md` (source of truth, kept in sync wi
 - `leccion_id`: send it when the chat is opened from a lesson; must equal a key in `servidor/configuracion/lecciones.json` (e.g. `leccion-iso-9001`, `leccion-iso-25010`) to have an effect — unknown ids are ignored, not an error. Progress endpoints accept any `leccion_id`.
 - `tipo` ∈ `saludo | funcionamiento | sin_documentos | respuesta | sin_contexto | redireccion | error`; `error` still comes with HTTP 200 (text in `respuesta`).
 - `adaptacion` = `{nivel: bajo|medio|alto, profundidad: breve|media|extensa, estilo: conceptual|ejemplos|comparativo, dificultad: bool, segmento: str, referencias: [{tema_id, tema, unidad}]}` or null.
-- `posicion_en_cola`/`espera_estimada_s`: show "waiting in line" when non-null. Errors: 422 (missing `mensaje`, ids > 100 chars), **503 when the queue wait passes 90 s** (retry later). A generation takes ~10–13 s, plus queue wait: client timeout must be ≥ 120 s.
+- `posicion_en_cola`/`espera_estimada_s`: show "waiting in line" when non-null. Errors: 422 (missing `mensaje`, ids > 100 chars), **503 when the queue wait passes 120 s** (`ESPERA_MAXIMA_COLA_S`, raised from 90 on 2026-10-08; retry later). A generation takes ~10–13 s, plus queue wait: client timeout must be ≥ 150 s (the app's `chat_service.dart` uses 120 s — too short now).
 
 ## Backend architecture
 
@@ -249,7 +249,7 @@ in `servidor/docs/contrato_api.md` and summarized in "API contract (summary)" ab
      generation, and running them outside the queue would just move the saturation it exists to prevent, not
      remove it (they're also mandatory and prior: there is no generating without classifying first).
   4. **A hard wait cap with a real-data estimate.** `cola.turno()` uses `asyncio.wait_for(...,
-     timeout=ESPERA_MAXIMA_COLA_S)` (90 s by default): past that, `TiempoDeEsperaAgotado` → `POST /chat` responds
+     timeout=ESPERA_MAXIMA_COLA_S)` (120 s by default; 90 s until 2026-10-08): past that, `TiempoDeEsperaAgotado` → `POST /chat` responds
      503 with a clear message instead of hanging the connection. The wait estimate shown to an arriving request
      is `posición × media móvil de las últimas generaciones reales` (`deque`, window of 20), not a constant, so
      it self-adjusts if the model, prompt length or machine changes.
@@ -259,7 +259,7 @@ in `servidor/docs/contrato_api.md` and summarized in "API contract (summary)" ab
   (`backend/scripts/prueba_concurrencia.py`, in-process via `httpx.ASGITransport` with `usuario_actual`
   overridden — no real Firebase token needed — against the real RAG and `llama3.2`) is in
   `reportes/prueba_concurrencia.md`: 10/20/40 simultaneous requests, 0 errors, 0 timeouts, with the 40-request
-  level's worst observed wait (72.6 s) already close to the 90 s cap — a margin to watch if real concurrency
+  level's worst observed wait (72.6 s) was already close to the then-90 s cap (raised to 120 s on 2026-10-08) — a margin to watch if real concurrency
   grows. The script's own first run hit `RuntimeError: ... bound to a different event loop` (calling
   `asyncio.run()` once per level while the queue's `asyncio.Semaphore`/`Lock` are module-level singletons bound
   to the first loop that touches them) — a bug in the *script*, not the server (a real uvicorn process has one
